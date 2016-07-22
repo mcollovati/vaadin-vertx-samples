@@ -3,11 +3,15 @@ package com.github.mcollovati.vertx.vaadin;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.server.WrappedSession;
 import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
+import io.vertx.core.Future;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.ext.auth.User;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.impl.CookieImpl;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 
 import javax.servlet.http.Cookie;
 import java.io.BufferedReader;
@@ -21,6 +25,8 @@ import java.util.Enumeration;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
@@ -30,6 +36,9 @@ import static java.util.stream.Collectors.toMap;
  * Created by marco on 16/07/16.
  */
 public class VertxVaadinRequest implements VaadinRequest {
+
+    private static final Pattern CONTENT_TYPE_PATTERN = Pattern.compile("^(.*/[^;]+)(?:;.*$|$)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern CHARSET_PATTERN = Pattern.compile("^.*(?<=charset=)([^;]+)(?:;.*$|$)", Pattern.CASE_INSENSITIVE);
 
     private final VertxVaadinService service;
     private final RoutingContext routingContext;
@@ -109,7 +118,9 @@ public class VertxVaadinRequest implements VaadinRequest {
 
     @Override
     public String getContentType() {
-        return request.getHeader(HttpHeaders.CONTENT_TYPE);
+        return Optional.ofNullable(request.getHeader(HttpHeaders.CONTENT_TYPE))
+            .map(CONTENT_TYPE_PATTERN::matcher).filter(Matcher::matches)
+            .map(m -> m.group(1)).orElse(null);
     }
 
     @Override
@@ -156,7 +167,7 @@ public class VertxVaadinRequest implements VaadinRequest {
         out.setHttpOnly(decoded.isHttpOnly());
         out.setSecure(decoded.isSecure());
         if (decoded.maxAge() != Long.MIN_VALUE) {
-            out.setMaxAge((int)decoded.maxAge());
+            out.setMaxAge((int) decoded.maxAge());
         }
 
         // TODO extract other values
@@ -173,21 +184,27 @@ public class VertxVaadinRequest implements VaadinRequest {
         return null;
     }
 
-    // TODO
     @Override
     public String getRemoteUser() {
-        return null;
+        return Optional.ofNullable(routingContext.user())
+            .map(User::principal).flatMap(json -> Optional.ofNullable(json.getString("username")))
+            .orElse(null);
     }
 
-    // TODO
     @Override
     public Principal getUserPrincipal() {
-        return null;
+        return Optional.ofNullable(routingContext.user())
+            .map(VertxPrincipal::new)
+            .orElse(null);
     }
 
     // TODO
     @Override
     public boolean isUserInRole(String role) {
+        if (routingContext.user() != null) {
+            Future<Boolean> userInRole = Future.future();
+            return Sync.await(completer -> routingContext.user().isAuthorised(role, completer));
+        }
         return false;
     }
 
@@ -210,12 +227,15 @@ public class VertxVaadinRequest implements VaadinRequest {
 
     @Override
     public int getRemotePort() {
-        return 0;
+        return Optional.ofNullable(request.remoteAddress())
+            .map(SocketAddress::port).orElse(-1);
     }
 
     @Override
     public String getCharacterEncoding() {
-        return null;
+        return Optional.ofNullable(request.getHeader(HttpHeaders.CONTENT_TYPE))
+            .map(CHARSET_PATTERN::matcher).filter(Matcher::matches)
+            .map(m -> m.group(1)).orElse(null);
     }
 
     @Override
@@ -254,5 +274,17 @@ public class VertxVaadinRequest implements VaadinRequest {
             return Optional.of((VertxVaadinRequest) request);
         }
         return Optional.empty();
+    }
+
+
+    @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
+    private static class VertxPrincipal implements Principal {
+
+        private final User user;
+
+        @Override
+        public String getName() {
+            return user.principal().getString("username");
+        }
     }
 }
