@@ -21,6 +21,7 @@ import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CookieHandler;
 import io.vertx.ext.web.handler.SessionHandler;
 import io.vertx.ext.web.handler.StaticHandler;
+import io.vertx.ext.web.sstore.ClusteredSessionStore;
 import io.vertx.ext.web.sstore.LocalSessionStore;
 import io.vertx.ext.web.sstore.SessionStore;
 import org.atmosphere.cache.UUIDBroadcasterCache;
@@ -71,7 +72,7 @@ public class VaadinVerticle extends AbstractVerticle {
 
 
         String sessionCookieName = config().getString("sessionCookieName", "vertx-web.session");
-        SessionStore sessionStore = LocalSessionStore.create(vertx);
+        SessionStore sessionStore = createSessionStore();
         SessionHandler sessionHandler = SessionHandler.create(sessionStore)
             .setSessionCookieName(sessionCookieName)
             .setCookieHttpOnlyFlag(true);
@@ -110,6 +111,13 @@ public class VaadinVerticle extends AbstractVerticle {
 
         log.info("Started vaadin verticle " + getClass().getName());
         startFuture.complete();
+    }
+
+    protected SessionStore createSessionStore() {
+        if (vertx.isClustered()) {
+            return ClusteredSessionStore.create(vertx);
+        }
+        return LocalSessionStore.create(vertx);
     }
 
     private void dump(RoutingContext routingContext) {

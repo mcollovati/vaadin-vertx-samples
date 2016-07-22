@@ -1,4 +1,4 @@
-package com.github.mcollovati.vertx.vaadin.utils;
+package com.github.mcollovati.vertx.utils;
 
 import com.pholser.junit.quickcheck.generator.java.lang.AbstractStringGenerator;
 import com.pholser.junit.quickcheck.random.SourceOfRandomness;

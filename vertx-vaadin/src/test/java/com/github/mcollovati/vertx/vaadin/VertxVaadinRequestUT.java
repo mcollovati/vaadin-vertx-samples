@@ -1,16 +1,18 @@
-package com.github.mcollovati.vertx.vaadin.vaadin;
+package com.github.mcollovati.vertx.vaadin;
 
-import com.github.mcollovati.vertx.vaadin.VertxVaadinRequest;
-import com.github.mcollovati.vertx.vaadin.VertxVaadinService;
-import com.github.mcollovati.vertx.vaadin.VertxWrappedSession;
-import com.github.mcollovati.vertx.vaadin.utils.RandomStringGenerator;
+import com.github.mcollovati.vertx.utils.RandomStringGenerator;
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.generator.InRange;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.impl.SocketAddressImpl;
 import io.vertx.ext.auth.User;
 import io.vertx.ext.web.Cookie;
@@ -28,13 +30,27 @@ import org.mockito.junit.MockitoRule;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import static java.util.Collections.emptyEnumeration;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.enumeration;
+import static java.util.Collections.list;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.entry;
+import static org.mockito.Matchers.isA;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -104,6 +120,13 @@ public class VertxVaadinRequestUT {
     }
 
     @Property(trials = TRIALS)
+    public void shouldDelegateGetReaderToHttpServerRequest(String body) throws IOException {
+        when(routingContext.getBodyAsString()).thenReturn(body);
+        assertThat(vaadinRequest.getReader().lines().collect(Collectors.joining(System.lineSeparator())))
+            .isEqualTo(body);
+    }
+
+    @Property(trials = TRIALS)
     public void shouldDelegateGetAttributeToRoutingContext(@From(RandomStringGenerator.class) String paramName,
                                                            @From(RandomStringGenerator.class) String value) {
         when(routingContext.get(paramName)).thenReturn(value);
@@ -116,6 +139,24 @@ public class VertxVaadinRequestUT {
                                                            Object value) {
         vaadinRequest.setAttribute(paramName, value);
         verify(routingContext).put(paramName, value);
+    }
+
+    @Property(trials = TRIALS)
+    public void shouldDelegateRemoveAttributeToRoutingContext(@From(RandomStringGenerator.class) String paramName) {
+        vaadinRequest.removeAttribute(paramName);
+        verify(routingContext).put(paramName, null);
+    }
+
+    @Test
+    public void shouldDelegateGetAttributeNamesToRoutingContext() {
+        Map<String, Object> data = new HashMap<String, Object>() {{
+            put("a", "a");
+            put("b", "b");
+            put("c", "c");
+        }};
+        when(routingContext.data()).thenReturn(emptyMap(), data);
+        assertThat(list(vaadinRequest.getAttributeNames())).isEmpty();
+        assertThat(list(vaadinRequest.getAttributeNames())).contains("a", "b", "c");
     }
 
     @Test
@@ -159,9 +200,16 @@ public class VertxVaadinRequestUT {
     }
 
     @Test
-    // TODO: always return null?
     public void shouldDelegateGetContentType() {
+        when(httpServerRequest.getHeader(HttpHeaders.CONTENT_TYPE)).thenReturn(null, "text/html",
+            "text/html;charset=UTF-8", "text/html; charset=UTF-8", "text/html; charset=UTF-8;",
+            "text/plain; charset=ISO-8859-1; format=flowed");
         assertThat(vaadinRequest.getContentType()).isNull();
+        assertThat(vaadinRequest.getContentType()).isEqualTo("text/html");
+        assertThat(vaadinRequest.getContentType()).isEqualTo("text/html");
+        assertThat(vaadinRequest.getContentType()).isEqualTo("text/html");
+        assertThat(vaadinRequest.getContentType()).isEqualTo("text/html");
+        assertThat(vaadinRequest.getContentType()).isEqualTo("text/plain");
     }
 
     @Test
@@ -194,7 +242,30 @@ public class VertxVaadinRequestUT {
                                         @From(RandomStringGenerator.class) String value) {
         when(httpServerRequest.getHeader(name)).thenReturn(value);
         assertThat(vaadinRequest.getHeader(name)).isEqualTo(value);
-        assertThat(vaadinRequest.getHeader(name+"notExist")).isNull();
+        assertThat(vaadinRequest.getHeader(name + "notExist")).isNull();
+    }
+
+    @Test
+    public void shouldDelegateGetHeaders() {
+        when(httpServerRequest.headers()).thenReturn(
+            MultiMap.caseInsensitiveMultiMap(),
+            MultiMap.caseInsensitiveMultiMap().add("a", Arrays.<String>asList("1","2"))
+                .add("b", "b").add("c", "c")
+        );
+        assertThat(list(vaadinRequest.getHeaders("a"))).isEmpty();
+        assertThat(list(vaadinRequest.getHeaders("a"))).containsExactly("1", "2");
+        assertThat(list(vaadinRequest.getHeaders("b"))).containsExactly("b");
+        assertThat(list(vaadinRequest.getHeaders("notPresent"))).isEmpty();
+    }
+
+    @Test
+    public void shouldDelegateGetHeaderNames() {
+        when(httpServerRequest.headers()).thenReturn(
+            MultiMap.caseInsensitiveMultiMap(),
+            MultiMap.caseInsensitiveMultiMap().add("a", "a").add("b", "b").add("c", "c")
+        );
+        assertThat(list(vaadinRequest.getHeaderNames())).isEmpty();
+        assertThat(list(vaadinRequest.getHeaderNames())).contains("a", "b", "c");
     }
 
     @Test
@@ -216,18 +287,110 @@ public class VertxVaadinRequestUT {
 
     @Test
     @Ignore
-    public void shouldDelegateGetAuthType()  {
+    public void shouldDelegateGetAuthType() {
 
     }
 
     @Test
-    public void shouldDelegateGetRemoteUser()  {
+    public void shouldDelegateGetRemoteUser() {
         User user = mock(User.class);
-        when(routingContext.user()).thenReturn(null);
-
+        when(user.principal())
+            .thenReturn(new JsonObject().put("username", "marco"))
+            .thenReturn(new JsonObject());
+        when(routingContext.user()).thenReturn(null).thenReturn(user);
         assertThat(vaadinRequest.getRemoteUser()).isNull();
-
+        assertThat(vaadinRequest.getRemoteUser()).isEqualTo("marco");
+        assertThat(vaadinRequest.getRemoteUser()).isNull();
     }
+
+    @Test
+    public void shouldDelegateGetPrincipal() {
+        User user = mock(User.class);
+        when(user.principal())
+            .thenReturn(new JsonObject().put("username", "marco"))
+            .thenReturn(new JsonObject());
+        when(routingContext.user()).thenReturn(null).thenReturn(user);
+        assertThat(vaadinRequest.getUserPrincipal()).isNull();
+        assertThat(vaadinRequest.getUserPrincipal()).extracting("name").containsExactly("marco");
+        assertThat(vaadinRequest.getUserPrincipal().getName()).isNull();
+    }
+
+    @Test
+    public void shouldDelegateIsUserInRole() {
+        User user = mock(User.class);
+        doAnswer(invocation -> {
+            String role = invocation.getArgumentAt(0, String.class);
+            Handler<AsyncResult<Boolean>> handler = invocation.getArgumentAt(1, Handler.class);
+            handler.handle(Future.succeededFuture("USER".equals(role)));
+            return user;
+        }).when(user).isAuthorised(isA(String.class), isA(Handler.class));
+        when(user.principal())
+            .thenReturn(new JsonObject().put("username", "marco"))
+            .thenReturn(new JsonObject());
+        when(routingContext.user()).thenReturn(null).thenReturn(user);
+        assertThat(vaadinRequest.isUserInRole("USER")).isFalse();
+        assertThat(vaadinRequest.isUserInRole("ADMIN")).isFalse();
+        assertThat(vaadinRequest.isUserInRole("USER")).isTrue();
+        //assertThat(vaadinRequest.getUserPrincipal().getName()).isNull();
+    }
+
+    @Test
+    public void shouldDelegateGetLocalesToRoutingContext() {
+        when(routingContext.acceptableLocales()).thenReturn(emptyList(), Arrays.asList(
+            Locale.create("it"), Locale.create("en", "US"), Locale.create("de")
+        ));
+        assertThat(list(vaadinRequest.getLocales())).isEmpty();
+        assertThat(list(vaadinRequest.getLocales())).contains(
+            new java.util.Locale("it"), new java.util.Locale("en", "US"), new java.util.Locale("de")
+        );
+    }
+    @Test
+    public void shouldDelegateGetRemoteHost() {
+        when(httpServerRequest.remoteAddress()).thenReturn(null, new SocketAddressImpl(5555, "10.1.1.1"));
+        assertThat(vaadinRequest.getRemoteAddr()).isNull();
+        assertThat(vaadinRequest.getRemoteAddr()).isEqualTo("10.1.1.1");
+    }
+    @Test
+    public void shouldDelegateGetRemotePort() {
+        when(httpServerRequest.remoteAddress()).thenReturn(null, new SocketAddressImpl(5555, "10.1.1.1"));
+        assertThat(vaadinRequest.getRemotePort()).isEqualTo(-1);
+        assertThat(vaadinRequest.getRemotePort()).isEqualTo(5555);
+    }
+    @Test
+    public void shouldDelegateGetCharacterEncoding() {
+        when(httpServerRequest.getHeader(HttpHeaders.CONTENT_TYPE)).thenReturn(null, "text/html",
+            "text/html;charset=UTF-8", "text/html; charset=UTF-8", "text/html; charset=UTF-8;",
+            "text/plain; charset=ISO-8859-1; format=flowed");
+        assertThat(vaadinRequest.getCharacterEncoding()).isNull();
+        assertThat(vaadinRequest.getCharacterEncoding()).isNull();
+        assertThat(vaadinRequest.getCharacterEncoding()).isEqualTo("UTF-8");
+        assertThat(vaadinRequest.getCharacterEncoding()).isEqualTo("UTF-8");
+        assertThat(vaadinRequest.getCharacterEncoding()).isEqualTo("UTF-8");
+        assertThat(vaadinRequest.getCharacterEncoding()).isEqualTo("ISO-8859-1");
+    }
+
+    @Test
+    public void shouldDelegateGetMethod() {
+        vaadinRequest.getMethod();
+        verify(httpServerRequest).rawMethod();
+    }
+
+    @Test
+    public void shouldDelegateGetDateHeader() {
+        ZonedDateTime headerValue = LocalDateTime.of(2016, 7, 3, 8, 49, 37)
+            .atZone(ZoneId.of("GMT"));
+        long longHeaderValue = headerValue.toEpochSecond() * 1000;
+        when(httpServerRequest.getHeader(HttpHeaders.IF_MODIFIED_SINCE.toString()))
+            .thenReturn(null)
+            .thenReturn("Sun, 03 Jul 2016 08:49:37 GMT")
+            .thenReturn("Sunday, 03-Jul-16 08:49:37 GMT")
+            .thenReturn("Sun Jul  3 08:49:37 2016");
+        assertThat(vaadinRequest.getDateHeader(HttpHeaders.IF_MODIFIED_SINCE.toString())).isEqualTo(-1);
+        assertThat(vaadinRequest.getDateHeader(HttpHeaders.IF_MODIFIED_SINCE.toString())).isEqualTo(longHeaderValue);
+        assertThat(vaadinRequest.getDateHeader(HttpHeaders.IF_MODIFIED_SINCE.toString())).isEqualTo(longHeaderValue);
+        assertThat(vaadinRequest.getDateHeader(HttpHeaders.IF_MODIFIED_SINCE.toString())).isEqualTo(longHeaderValue);
+    }
+
 
     /*
 Method              URL-Decoded Result
