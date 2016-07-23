@@ -13,5 +13,6 @@
     <modules>
         <module>vertx-vaadin</module>
         <module>sample</module>
+        <module>dashboard-demo</module>
     </modules>
 </project>
