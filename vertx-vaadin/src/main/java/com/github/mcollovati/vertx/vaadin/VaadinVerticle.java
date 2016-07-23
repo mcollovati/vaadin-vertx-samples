@@ -72,6 +72,7 @@ public class VaadinVerticle extends AbstractVerticle {
     private static final Logger log = LoggerFactory.getLogger(VaadinVerticle.class);
 
     private HttpServer httpServer;
+    private VertxVaadinService service;
 
 
     @Override
@@ -84,7 +85,7 @@ public class VaadinVerticle extends AbstractVerticle {
             .map(VaadinVerticleConfiguration::mountPoint)
             .orElse(config().getString("mountPoint", "/"));
 
-        VertxVaadinService service = new VertxVaadinService(this, createDeploymentConfiguration());
+        service = createVaadinService();
         service.init();
 
         HttpServerOptions serverOptions = new HttpServerOptions()
@@ -130,9 +131,21 @@ public class VaadinVerticle extends AbstractVerticle {
         router.mountSubRouter(mountPoint, vaadinRouter);
 
         httpServer.requestHandler(router::accept).listen(config().getInteger("httpPort", 8080));
+        serviceInitialized();
 
         log.info("Started vaadin verticle " + getClass().getName());
         startFuture.complete();
+    }
+
+    protected void serviceInitialized() {
+    }
+
+    protected VertxVaadinService createVaadinService() {
+        return new VertxVaadinService(this, createDeploymentConfiguration());
+    }
+
+    protected VertxVaadinService getService() {
+        return service;
     }
 
     protected SessionStore createSessionStore() {

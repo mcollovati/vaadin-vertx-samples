@@ -121,9 +121,10 @@ public class VertxVaadinService extends VaadinService {
         return null;
     }
 
+    // TODO: from system property?
     @Override
     public File getBaseDirectory() {
-        return null;
+        return new File(".");
     }
 
 
