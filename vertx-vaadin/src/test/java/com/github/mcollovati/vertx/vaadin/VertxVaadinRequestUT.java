@@ -264,7 +264,7 @@ public class VertxVaadinRequestUT {
             MultiMap.caseInsensitiveMultiMap(),
             MultiMap.caseInsensitiveMultiMap().add("a", "a").add("b", "b").add("c", "c")
         );
-        assertThat(list(vaadinRequest.getHeaderNames())).isEmpty();
+        assertThat(list(vaadinRequest.getHeaderNames())).isEmpty();            2
         assertThat(list(vaadinRequest.getHeaderNames())).contains("a", "b", "c");
     }
 
@@ -390,29 +390,6 @@ public class VertxVaadinRequestUT {
         assertThat(vaadinRequest.getDateHeader(HttpHeaders.IF_MODIFIED_SINCE.toString())).isEqualTo(longHeaderValue);
         assertThat(vaadinRequest.getDateHeader(HttpHeaders.IF_MODIFIED_SINCE.toString())).isEqualTo(longHeaderValue);
     }
-
-
-    /*
-Method              URL-Decoded Result
--------------------------------------------------
-getContextPath()                /app
-getLocalAddr()                  127.0.0.1
-getLocalName()                  30thh.loc
-getLocalPort()                  8480
-getMethod()                     GET
-getPathInfo()           yes     /a?+b
-getProtocol()                   HTTP/1.1
-getQueryString()        no      p+1=c+d&p+2=e+f
-getRequestedSessionId() no      S%3F+ID
-getRequestURI()         no      /app/test%3F/a%3F+b;jsessionid=S+ID
-getRequestURL()         no      http://30thh.loc:8480/app/test%3F/a%3F+b;jsessionid=S+ID
-getScheme()                     http
-getServerName()                 30thh.loc
-getServerPort()                 8480
-getServletPath()        yes     /test?
-getParameterNames()     yes     [p 2, p 1]
-getParameter("p 1")     yes     c d
-     */
 
 
     private void assertPathInfo(String mountPoint, String path, String expected) {
