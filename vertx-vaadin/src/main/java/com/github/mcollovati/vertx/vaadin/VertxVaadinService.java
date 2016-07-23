@@ -123,7 +123,7 @@ public class VertxVaadinService extends VaadinService {
 
     @Override
     public File getBaseDirectory() {
-        return null;
+        return new File(".");
     }
 
 
