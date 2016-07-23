@@ -1,4 +1,4 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
@@ -8,7 +8,24 @@
     <packaging>jar</packaging>
 
     <name>vertx-vaadin</name>
-    <url>http://maven.apache.org</url>
+    <organization>
+        <name>Marco Collovati</name>
+        <url>https://github.com/mcollovati</url>
+    </organization>
+    <inceptionYear>2016</inceptionYear>
+    <developers>
+        <developer>
+            <name>Marco Collovati</name>
+            <email>mcollovati@gmail.com</email>
+        </developer>
+    </developers>
+    <licenses>
+        <license>
+            <name>MIT</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -18,6 +35,10 @@
         <vaadin.version>7.6.8</vaadin.version>
         <javax.servlet.version>3.1.0</javax.servlet.version>
         <junit-quickcheck.version>0.6</junit-quickcheck.version>
+        <license.directory>${project.basedir}/license</license.directory>
+        <jacoco-maven-plugin.version>0.7.6.201602180812</jacoco-maven-plugin.version>
+        <license-maven-plugin.version>3.0.rc1</license-maven-plugin.version>
+        <maven-checkstyle-plugin.version>2.17</maven-checkstyle-plugin.version>
     </properties>
 
     <dependencyManagement>
@@ -205,6 +226,75 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>pre-unit-test</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                        <configuration>
+                            <destFile>${jacoco.ut.execution.data.file}</destFile>
+                            <propertyName>surefireArgLine</propertyName>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>post-unit-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                        <configuration>
+                            <dataFile>${jacoco.ut.execution.data.file}</dataFile>
+                            <outputDirectory>${project.reporting.outputDirectory}/jacoco-ut</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>${license-maven-plugin.version}</version>
+                <configuration>
+                    <header>${license.directory}/MIT.txt</header>
+                    <properties>
+                        <owner>${project.organization.name}</owner>
+                        <email>mcollovati@gmail.com</email>
+                    </properties>
+                    <includes>
+                        <include>src/main/java/**</include>
+                        <include>src/test/java/**</include>
+                    </includes>
+                    <excludes>
+                        <exclude>src/main/java/org/atmosphere/vertx/AtmosphereCoordinator*</exclude>
+                        <exclude>src/main/java/org/atmosphere/vertx/AtmosphereUtils*</exclude>
+                    </excludes>
+                    <mapping>
+                        <java>SLASHSTAR_STYLE</java>
+                    </mapping>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>${maven-checkstyle-plugin.version}</version>
+                <configuration>
+                    <configLocation>${project.basedir}/checkstyle/vaadin-checkstyle.xml</configLocation>
+                    <headerLocation>${project.basedir}/checkstyle/license.txt</headerLocation>
+                    <suppressionsLocation>${project.basedir}/checkstyle/suppressions.xml
+                    </suppressionsLocation>
+                    <encoding>UTF-8</encoding>
+                    <consoleOutput>false</consoleOutput>
+                    <failsOnError>false</failsOnError>
+                    <linkXRef>false</linkXRef>
+                    <!--
+                        <exclude>org/atmosphere/vertx/AtmosphereCoordinator*</exclude>
+                        <exclude>org/atmosphere/vertx/AtmosphereUtils*</exclude>
+                        -->
+                </configuration>
             </plugin>
         </plugins>
     </build>

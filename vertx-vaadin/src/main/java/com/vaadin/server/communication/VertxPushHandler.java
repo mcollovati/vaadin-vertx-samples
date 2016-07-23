@@ -1,19 +1,25 @@
 /*
- * Copyright 2000-2014 Vaadin Ltd.
+ * The MIT License
+ * Copyright © 2016 Marco Collovati (mcollovati@gmail.com)
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
-
 package com.vaadin.server.communication;
 
 import com.github.mcollovati.vertx.vaadin.VertxVaadinRequest;
@@ -54,62 +60,6 @@ import java.util.logging.Logger;
  * @since 7.1
  */
 public class VertxPushHandler extends PushHandler {
-
-    private int longPollingSuspendTimeout = -1;
-
-    /**
-     * Callback interface used internally to process an event with the
-     * corresponding UI properly locked.
-     */
-    private interface PushEventCallback {
-        public void run(AtmosphereResource resource, UI ui) throws IOException;
-    }
-
-    /**
-     * Callback used when we receive a request to establish a push channel for a
-     * UI. Associate the AtmosphereResource with the UI and leave the connection
-     * open by calling resource.suspend(). If there is a pending push, send it
-     * now.
-     */
-    private final PushEventCallback establishCallback = new PushEventCallback() {
-        @Override
-        public void run(AtmosphereResource resource, UI ui) throws IOException {
-            getLogger().log(Level.FINER,
-                "New push connection for resource {0} with transport {1}",
-                new Object[]{resource.uuid(), resource.transport()});
-
-            resource.getResponse().setContentType("text/plain; charset=UTF-8");
-
-            VaadinSession session = ui.getSession();
-            if (resource.transport() == TRANSPORT.STREAMING) {
-                // Must ensure that the streaming response contains
-                // "Connection: close", otherwise iOS 6 will wait for the
-                // response to this request before sending another request to
-                // the same server (as it will apparently try to reuse the same
-                // connection)
-                resource.getResponse().addHeader("Connection", "close");
-            }
-
-            String requestToken = resource.getRequest().getParameter(
-                ApplicationConstants.CSRF_TOKEN_PARAMETER);
-            if (!VaadinService.isCsrfTokenValid(session, requestToken)) {
-                getLogger()
-                    .log(Level.WARNING,
-                        "Invalid CSRF token in new connection received from {0}",
-                        resource.getRequest().getRemoteHost());
-                // Refresh on client side, create connection just for
-                // sending a message
-                sendRefreshAndDisconnect(resource);
-                return;
-            }
-
-            suspend(resource);
-
-            AtmospherePushConnection connection = getConnectionForUI(ui);
-            assert (connection != null);
-            connection.connect(resource);
-        }
-    };
 
     /**
      * Callback used when we receive a UIDL request through Atmosphere. If the
@@ -162,12 +112,125 @@ public class VertxPushHandler extends PushHandler {
             }
         }
     };
+    private int longPollingSuspendTimeout = -1;
+    /**
+     * Callback used when we receive a request to establish a push channel for a
+     * UI. Associate the AtmosphereResource with the UI and leave the connection
+     * open by calling resource.suspend(). If there is a pending push, send it
+     * now.
+     */
+    private final PushEventCallback establishCallback = new PushEventCallback() {
+        @Override
+        public void run(AtmosphereResource resource, UI ui) throws IOException {
+            getLogger().log(Level.FINER,
+                "New push connection for resource {0} with transport {1}",
+                new Object[]{resource.uuid(), resource.transport()});
 
+            resource.getResponse().setContentType("text/plain; charset=UTF-8");
+
+            VaadinSession session = ui.getSession();
+            if (resource.transport() == TRANSPORT.STREAMING) {
+                // Must ensure that the streaming response contains
+                // "Connection: close", otherwise iOS 6 will wait for the
+                // response to this request before sending another request to
+                // the same server (as it will apparently try to reuse the same
+                // connection)
+                resource.getResponse().addHeader("Connection", "close");
+            }
+
+            String requestToken = resource.getRequest().getParameter(
+                ApplicationConstants.CSRF_TOKEN_PARAMETER);
+            if (!VaadinService.isCsrfTokenValid(session, requestToken)) {
+                getLogger()
+                    .log(Level.WARNING,
+                        "Invalid CSRF token in new connection received from {0}",
+                        resource.getRequest().getRemoteHost());
+                // Refresh on client side, create connection just for
+                // sending a message
+                sendRefreshAndDisconnect(resource);
+                return;
+            }
+
+            suspend(resource);
+
+            AtmospherePushConnection connection = getConnectionForUI(ui);
+            assert (connection != null);
+            connection.connect(resource);
+        }
+    };
     private VertxVaadinService service;
 
     public VertxPushHandler(VertxVaadinService service) {
         super(null);
         this.service = service;
+    }
+
+    private static AtmospherePushConnection getConnectionForUI(UI ui) {
+        PushConnection pushConnection = ui.getPushConnection();
+        if (pushConnection instanceof AtmospherePushConnection) {
+            return (AtmospherePushConnection) pushConnection;
+        } else {
+            return null;
+        }
+    }
+
+    private static UI findUiUsingResource(AtmosphereResource resource,
+                                          Collection<UI> uIs) {
+        for (UI ui : uIs) {
+            PushConnection pushConnection = ui.getPushConnection();
+            if (pushConnection instanceof AtmospherePushConnection) {
+                if (ExposeVaadin.resourceFromPushConnection(ui) == resource) {
+                    return ui;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Sends a refresh message to the given atmosphere resource. Uses an
+     * AtmosphereResource instead of an AtmospherePushConnection even though it
+     * might be possible to look up the AtmospherePushConnection from the UI to
+     * ensure border cases work correctly, especially when there temporarily are
+     * two push connections which try to use the same UI. Using the
+     * AtmosphereResource directly guarantees the message goes to the correct
+     * recipient.
+     *
+     * @param resource The atmosphere resource to send refresh to
+     */
+    private static void sendRefreshAndDisconnect(AtmosphereResource resource)
+        throws IOException {
+        sendNotificationAndDisconnect(resource,
+            VaadinService.createCriticalNotificationJSON(null, null, null,
+                null));
+    }
+
+    /**
+     * Tries to send a critical notification to the client and close the
+     * connection. Does nothing if the connection is already closed.
+     */
+    private static void sendNotificationAndDisconnect(
+        AtmosphereResource resource, String notificationJson) {
+        // TODO Implemented differently from sendRefreshAndDisconnect
+        try {
+            if (resource instanceof AtmosphereResourceImpl
+                && !((AtmosphereResourceImpl) resource).isInScope()) {
+                // The resource is no longer valid so we should not write
+                // anything to it
+                getLogger()
+                    .fine("sendNotificationAndDisconnect called for resource no longer in scope");
+                return;
+            }
+            resource.getResponse().getWriter().write(notificationJson);
+            resource.resume();
+        } catch (Exception e) {
+            getLogger().log(Level.FINEST,
+                "Failed to send critical notification to client", e);
+        }
+    }
+
+    private static final Logger getLogger() {
+        return Logger.getLogger(VertxPushHandler.class.getName());
     }
 
     /**
@@ -197,8 +260,8 @@ public class VertxPushHandler extends PushHandler {
         AtmosphereRequest req = resource.getRequest();
 
 
-        RoutingContext routingContext = (RoutingContext)req.getAttribute(RoutingContext.class.getName());
-        HttpServerRequest httpServerRequest = (HttpServerRequest)req.getAttribute(HttpServerRequest.class.getName());
+        RoutingContext routingContext = (RoutingContext) req.getAttribute(RoutingContext.class.getName());
+        HttpServerRequest httpServerRequest = (HttpServerRequest) req.getAttribute(HttpServerRequest.class.getName());
 
         assert routingContext != null;
         assert httpServerRequest != null;
@@ -307,15 +370,6 @@ public class VertxPushHandler extends PushHandler {
         }
     }
 
-    private static AtmospherePushConnection getConnectionForUI(UI ui) {
-        PushConnection pushConnection = ui.getPushConnection();
-        if (pushConnection instanceof AtmospherePushConnection) {
-            return (AtmospherePushConnection) pushConnection;
-        } else {
-            return null;
-        }
-    }
-
     void connectionLost(AtmosphereResourceEvent event) {
         // We don't want to use callWithUi here, as it assumes there's a client
         // request active and does requestStart and requestEnd among other
@@ -324,8 +378,8 @@ public class VertxPushHandler extends PushHandler {
         AtmosphereResource resource = event.getResource();
         AtmosphereRequest req = resource.getRequest();
 
-        RoutingContext routingContext = (RoutingContext)req.getAttribute(RoutingContext.class.getName());
-        HttpServerRequest httpServerRequest = (HttpServerRequest)req.getAttribute(HttpServerRequest.class.getName());
+        RoutingContext routingContext = (RoutingContext) req.getAttribute(RoutingContext.class.getName());
+        HttpServerRequest httpServerRequest = (HttpServerRequest) req.getAttribute(HttpServerRequest.class.getName());
 
         VertxVaadinRequest vaadinRequest = new VertxVaadinRequest(service, routingContext);
         VaadinSession session = null;
@@ -427,65 +481,6 @@ public class VertxPushHandler extends PushHandler {
         }
     }
 
-    private static UI findUiUsingResource(AtmosphereResource resource,
-                                          Collection<UI> uIs) {
-        for (UI ui : uIs) {
-            PushConnection pushConnection = ui.getPushConnection();
-            if (pushConnection instanceof AtmospherePushConnection) {
-                if (ExposeVaadin.resourceFromPushConnection(ui) == resource) {
-                    return ui;
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Sends a refresh message to the given atmosphere resource. Uses an
-     * AtmosphereResource instead of an AtmospherePushConnection even though it
-     * might be possible to look up the AtmospherePushConnection from the UI to
-     * ensure border cases work correctly, especially when there temporarily are
-     * two push connections which try to use the same UI. Using the
-     * AtmosphereResource directly guarantees the message goes to the correct
-     * recipient.
-     *
-     * @param resource The atmosphere resource to send refresh to
-     */
-    private static void sendRefreshAndDisconnect(AtmosphereResource resource)
-        throws IOException {
-        sendNotificationAndDisconnect(resource,
-            VaadinService.createCriticalNotificationJSON(null, null, null,
-                null));
-    }
-
-    /**
-     * Tries to send a critical notification to the client and close the
-     * connection. Does nothing if the connection is already closed.
-     */
-    private static void sendNotificationAndDisconnect(
-        AtmosphereResource resource, String notificationJson) {
-        // TODO Implemented differently from sendRefreshAndDisconnect
-        try {
-            if (resource instanceof AtmosphereResourceImpl
-                && !((AtmosphereResourceImpl) resource).isInScope()) {
-                // The resource is no longer valid so we should not write
-                // anything to it
-                getLogger()
-                    .fine("sendNotificationAndDisconnect called for resource no longer in scope");
-                return;
-            }
-            resource.getResponse().getWriter().write(notificationJson);
-            resource.resume();
-        } catch (Exception e) {
-            getLogger().log(Level.FINEST,
-                "Failed to send critical notification to client", e);
-        }
-    }
-
-    private static final Logger getLogger() {
-        return Logger.getLogger(VertxPushHandler.class.getName());
-    }
-
     /**
      * Called when a new push connection is requested to be opened by the client
      *
@@ -508,6 +503,16 @@ public class VertxPushHandler extends PushHandler {
     }
 
     /**
+     * Gets the timeout used for suspend calls when using long polling.
+     *
+     * @return the timeout to use for suspended AtmosphereResources
+     * @since 7.6
+     */
+    public int getLongPollingSuspendTimeout() {
+        return longPollingSuspendTimeout;
+    }
+
+    /**
      * Sets the timeout used for suspend calls when using long polling.
      *
      * If you are using a proxy with a defined idle timeout, set the suspend
@@ -522,13 +527,11 @@ public class VertxPushHandler extends PushHandler {
     }
 
     /**
-     * Gets the timeout used for suspend calls when using long polling.
-     *
-     * @return the timeout to use for suspended AtmosphereResources
-     * @since 7.6
+     * Callback interface used internally to process an event with the
+     * corresponding UI properly locked.
      */
-    public int getLongPollingSuspendTimeout() {
-        return longPollingSuspendTimeout;
+    private interface PushEventCallback {
+        public void run(AtmosphereResource resource, UI ui) throws IOException;
     }
 
 }

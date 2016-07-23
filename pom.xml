@@ -8,11 +8,7 @@
     <packaging>pom</packaging>
 
     <name>vaadin-vertx-samples</name>
-    <url>http://maven.apache.org</url>
-
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
+    <url>https://github.com/mcollovati/vaadin-vertx-samples</url>
 
     <modules>
         <module>vertx-vaadin</module>

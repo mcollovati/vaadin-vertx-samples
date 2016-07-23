@@ -73,8 +73,8 @@ public class AtmosphereCoordinator {
     private final AtmosphereFramework framework;
     private final ScheduledExecutorService suspendTimer;
     private final EndpointMapper<AtmosphereFramework.AtmosphereHandlerWrapper> mapper;
-    private WebSocketProcessor webSocketProcessor;
     private final AsynchronousProcessor asynchronousProcessor;
+    private WebSocketProcessor webSocketProcessor;
 
     AtmosphereCoordinator() {
         framework = new AtmosphereFramework();

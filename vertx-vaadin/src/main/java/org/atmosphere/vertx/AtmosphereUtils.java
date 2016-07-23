@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.security.cert.X509Certificate;
-import javax.servlet.http.HttpSession;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -52,6 +51,7 @@ public class AtmosphereUtils {
     public final static AtmosphereRequest request(final HttpServerRequest request) throws Throwable {
         return request(request, null);
     }
+
     public final static AtmosphereRequest request(final HttpServerRequest request,
                                                   final Consumer<AtmosphereRequest.Builder> configurer) throws Throwable {
         final String base = getBaseUri(request);
