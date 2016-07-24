@@ -79,7 +79,7 @@ public class VertxVaadinResponse implements VaadinResponse {
     @Override
     public void setDateHeader(String name, long timestamp) {
         response.putHeader(name, DateTimeFormatter.RFC_1123_DATE_TIME.format(
-            OffsetDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault()))
+            OffsetDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.of("GMT")))
         );
     }
 

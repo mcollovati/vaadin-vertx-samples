@@ -53,6 +53,9 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -159,11 +162,20 @@ public class VertxVaadinResponseUT {
 
 
     @Test
-    public void shouldDelegateSetCacheTime() throws Exception {
+    public void shouldDelegateSetCacheTimeForNoCache() throws Exception {
         vaadinResponse.setCacheTime(-1);
         verify(httpServerResponse).putHeader(HttpHeaders.CACHE_CONTROL.toString(), "no-cache");
         verify(httpServerResponse).putHeader("Pragma", "no-cache");
-        assertDateHeader(HttpHeaders.EXPIRES.toString(), LocalDateTime.of(1970, 1, 1, 0, 0, 0), "Thu, 1 Jan 1970 00:00:00");
+        assertDateHeader(HttpHeaders.EXPIRES.toString(), LocalDateTime.of(1970, 1, 1, 0, 0, 0), "Thu, 1 Jan 1970 00:00:00", false);
+    }
+
+    @Test
+    public void shouldDelegateSetCacheTime() throws Exception {
+        long millis = 3000;
+        vaadinResponse.setCacheTime(millis);
+        verify(httpServerResponse).putHeader(HttpHeaders.CACHE_CONTROL.toString(), "max-age=3");
+        verify(httpServerResponse).putHeader(eq(HttpHeaders.EXPIRES.toString()), anyString());
+        verify(httpServerResponse).putHeader("Pragma", "cache");
     }
 
     @Test
@@ -202,13 +214,21 @@ public class VertxVaadinResponseUT {
         verify(httpServerResponse).putHeader(HttpHeaders.CONTENT_LENGTH, "1000");
     }
 
+
     private void assertDateHeader(String headerName, LocalDateTime dateTime, String expected) {
-        long epochMilli = dateTime.atZone(ZoneId.systemDefault())
-            .toEpochSecond() * 1000;
-        String offset = DateTimeFormatter.ofPattern(" Z").format(
-            Instant.ofEpochMilli(epochMilli).atZone(ZoneId.systemDefault())
+        assertDateHeader(headerName, dateTime, expected, true);
+    }
+    private void assertDateHeader(String headerName, LocalDateTime dateTime, String expected, boolean invoke) {
+        long epochMilli = dateTime.atZone(ZoneId.of("GMT")).toEpochSecond() * 1000;
+        String offset = DateTimeFormatter.ofPattern(" zzz").format(
+            Instant.ofEpochMilli(epochMilli).atZone(ZoneId.of("GMT"))
         );
-        vaadinResponse.setDateHeader(headerName, epochMilli);
+        if (" +0000".equals(offset)) {
+            offset = " GMT";
+        }
+        if (invoke) {
+            vaadinResponse.setDateHeader(headerName, epochMilli);
+        }
         verify(httpServerResponse).putHeader(headerName, expected + offset);
     }
 
