@@ -116,7 +116,7 @@ public class VaadinVerticle extends AbstractVerticle {
             //dump(routingContext);
             HttpServerRequest req = routingContext.request();
             VertxVaadinRequest request = new VertxVaadinRequest(service, routingContext);
-            VertxVaadinResponse response = new VertxVaadinResponse(service, req.response());
+            VertxVaadinResponse response = new VertxVaadinResponse(service, routingContext);
 
             try {
                 service.handleRequest(request, response);

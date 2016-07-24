@@ -24,14 +24,12 @@ package com.github.mcollovati.vertx.vaadin;
 
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.server.WrappedSession;
-import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.auth.User;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.impl.CookieImpl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 
@@ -194,28 +192,9 @@ public class VertxVaadinRequest implements VaadinRequest {
     @Override
     public Cookie[] getCookies() {
         if (routingContext.cookieCount() > 0) {
-            return routingContext.cookies().stream().map(this::mapCookie).toArray(Cookie[]::new);
+            return routingContext.cookies().stream().map(CookieUtils::fromVertxCookie).toArray(Cookie[]::new);
         }
         return null;
-    }
-
-    private Cookie mapCookie(io.vertx.ext.web.Cookie cookie) {
-        io.netty.handler.codec.http.cookie.Cookie decoded = ClientCookieDecoder.STRICT.decode(cookie.encode());
-        Cookie out = new Cookie(decoded.name(), decoded.value());
-        Optional.ofNullable(decoded.domain()).ifPresent(out::setDomain);
-        out.setPath(decoded.path());
-        out.setHttpOnly(decoded.isHttpOnly());
-        out.setSecure(decoded.isSecure());
-        if (decoded.maxAge() != Long.MIN_VALUE) {
-            out.setMaxAge((int) decoded.maxAge());
-        }
-
-        // TODO extract other values
-        return out;
-    }
-
-    private void mapCookieImpl(CookieImpl vertxCookie, Cookie servletCookie) {
-
     }
 
     // TODO

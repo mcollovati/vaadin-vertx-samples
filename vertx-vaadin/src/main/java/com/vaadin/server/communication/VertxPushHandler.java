@@ -85,7 +85,7 @@ public class VertxPushHandler extends PushHandler {
                 + "connection is kept open or if the UI has a "
                 + "connection of unexpected type.";
 
-            Reader reader = ExposeVaadin.readMessageFromPushConnection(connection, req.getReader());
+            Reader reader = ExposeVaadinCommunicationPkg.readMessageFromPushConnection(connection, req.getReader());
             if (reader == null) {
                 // The whole message was not yet received
                 return;
@@ -179,7 +179,7 @@ public class VertxPushHandler extends PushHandler {
         for (UI ui : uIs) {
             PushConnection pushConnection = ui.getPushConnection();
             if (pushConnection instanceof AtmospherePushConnection) {
-                if (ExposeVaadin.resourceFromPushConnection(ui) == resource) {
+                if (ExposeVaadinCommunicationPkg.resourceFromPushConnection(ui) == resource) {
                     return ui;
                 }
             }
@@ -305,7 +305,7 @@ public class VertxPushHandler extends PushHandler {
 
                 if (ui == null) {
                     sendNotificationAndDisconnect(resource,
-                        ExposeVaadin.getUINotFoundErrorJSON(service, vaadinRequest));
+                        ExposeVaadinCommunicationPkg.getUINotFoundErrorJSON(service, vaadinRequest));
                 } else {
                     callback.run(resource, ui);
                 }
@@ -322,7 +322,7 @@ public class VertxPushHandler extends PushHandler {
                     // Otherwise we will write the response to the wrong request
                     // when using streaming (the client -> server request
                     // instead of the opened push channel)
-                    errorResource = ExposeVaadin.resourceFromPushConnection(ui);
+                    errorResource = ExposeVaadinCommunicationPkg.resourceFromPushConnection(ui);
                 }
 
                 sendNotificationAndDisconnect(

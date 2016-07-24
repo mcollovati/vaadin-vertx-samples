@@ -206,6 +206,7 @@
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
+                    <argLine>${surefireArgLine}</argLine>
                     <includes>
                         <include>**/*UT.java</include>
                     </includes>
@@ -290,10 +291,6 @@
                     <consoleOutput>false</consoleOutput>
                     <failsOnError>false</failsOnError>
                     <linkXRef>false</linkXRef>
-                    <!--
-                        <exclude>org/atmosphere/vertx/AtmosphereCoordinator*</exclude>
-                        <exclude>org/atmosphere/vertx/AtmosphereUtils*</exclude>
-                        -->
                 </configuration>
             </plugin>
         </plugins>

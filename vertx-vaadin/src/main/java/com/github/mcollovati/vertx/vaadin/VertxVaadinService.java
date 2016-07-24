@@ -181,4 +181,5 @@ public class VertxVaadinService extends VaadinService {
         return vaadinVerticle;
     }
 
+
 }

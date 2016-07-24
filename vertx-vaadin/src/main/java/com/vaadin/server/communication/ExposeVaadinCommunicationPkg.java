@@ -33,7 +33,7 @@ import java.io.Reader;
 /**
  * Created by marco on 18/07/16.
  */
-public interface ExposeVaadin {
+public interface ExposeVaadinCommunicationPkg {
 
     static String getUINotFoundErrorJSON(VaadinService service, VaadinRequest vaadinRequest) {
         return UidlRequestHandler.getUINotFoundErrorJSON(service, vaadinRequest);
@@ -46,4 +46,5 @@ public interface ExposeVaadin {
     static Reader readMessageFromPushConnection(AtmospherePushConnection pushConnection, Reader reader) throws IOException {
         return pushConnection.receiveMessage(reader);
     }
+
 }

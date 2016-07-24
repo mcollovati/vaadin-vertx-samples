@@ -23,11 +23,12 @@
 package com.github.mcollovati.vertx.vaadin;
 
 
+import com.vaadin.server.ExposeVaadinServerPkg;
 import com.vaadin.server.VaadinResponse;
-import com.vaadin.server.VaadinService;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.ext.web.RoutingContext;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -37,24 +38,27 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Created by marco on 16/07/16.
  */
 public class VertxVaadinResponse implements VaadinResponse {
 
+    private final RoutingContext routingContext;
     private final HttpServerResponse response;
-    private final VertxVaadinService service;
-    private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.RFC_1123_DATE_TIME;
+    private final VertxVaadinService service;;
     private Buffer outBuffer = Buffer.buffer();
     private boolean useOOS = false;
     private boolean useWriter = false;
 
-    public VertxVaadinResponse(VertxVaadinService service, HttpServerResponse response) {
-        this.response = response;
+    public VertxVaadinResponse(VertxVaadinService service, RoutingContext routingContext) {
+        this.routingContext = routingContext;
+        this.response = routingContext.response();
         this.service = service;
+    }
+
+    protected final RoutingContext getRoutingContext() {
+        return routingContext;
     }
 
     @Override
@@ -64,7 +68,7 @@ public class VertxVaadinResponse implements VaadinResponse {
 
     @Override
     public void setContentType(String contentType) {
-        response.putHeader("Content-Type", contentType);
+        response.putHeader(HttpHeaders.CONTENT_TYPE, contentType);
     }
 
     @Override
@@ -74,13 +78,15 @@ public class VertxVaadinResponse implements VaadinResponse {
 
     @Override
     public void setDateHeader(String name, long timestamp) {
-        response.putHeader(name, dateTimeFormatter.format(OffsetDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault())));
+        response.putHeader(name, DateTimeFormatter.RFC_1123_DATE_TIME.format(
+            OffsetDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault()))
+        );
     }
 
     @Override
     public OutputStream getOutputStream() throws IOException {
         if (useWriter) {
-            throw new IllegalStateException("Using Writer");
+            throw new IllegalStateException("getWriter() has already been called for this response");
         }
         useOOS = true;
         return new OutputStream() {
@@ -91,7 +97,6 @@ public class VertxVaadinResponse implements VaadinResponse {
 
             @Override
             public void close() throws IOException {
-                System.out.println("OOS END RESPONSE");
                 response.end(outBuffer);
             }
         };
@@ -100,27 +105,23 @@ public class VertxVaadinResponse implements VaadinResponse {
     @Override
     public PrintWriter getWriter() throws IOException {
         if (useOOS) {
-            throw new IllegalStateException("Using OOS");
+            throw new IllegalStateException("getOutputStream() has already been called for this response");
         }
         useWriter = true;
         return new PrintWriter(new Writer() {
             @Override
             public void write(char[] cbuf, int off, int len) throws IOException {
-                outBuffer.appendString(Stream.of(cbuf).skip(off).limit(len)
-                    .map(c -> c.toString())
-                    .collect(Collectors.joining()));
+                outBuffer.appendString(new String(cbuf, off, len));
             }
 
             @Override
             public void flush() throws IOException {
-                System.out.println("WRITER FLUSH RESPONSE");
                 response.write(outBuffer);
                 outBuffer = Buffer.buffer();
             }
 
             @Override
             public void close() throws IOException {
-                System.out.println("WRITER END RESPONSE");
                 response.end(outBuffer);
             }
         });
@@ -128,7 +129,7 @@ public class VertxVaadinResponse implements VaadinResponse {
 
     @Override
     public void setCacheTime(long milliseconds) {
-        // TODO
+        ExposeVaadinServerPkg.setCacheTime(this, milliseconds);
     }
 
     @Override
@@ -137,13 +138,13 @@ public class VertxVaadinResponse implements VaadinResponse {
     }
 
     @Override
-    public VaadinService getService() {
+    public VertxVaadinService getService() {
         return service;
     }
 
     @Override
     public void addCookie(javax.servlet.http.Cookie cookie) {
-        // TODO
+        routingContext.addCookie(CookieUtils.toVertxCookie(cookie));
     }
 
     @Override
@@ -151,8 +152,12 @@ public class VertxVaadinResponse implements VaadinResponse {
         response.putHeader(HttpHeaders.CONTENT_LENGTH, Integer.toString(len));
     }
 
+    /**
+     * Ends the response.
+     *
+     * Does nothing if response is already endend or if it is chunked.
+     */
     void end() {
-        System.out.println("================================= CHUNKED " + response.isChunked());
         if (!response.ended() && !response.isChunked()) {
             response.end(outBuffer);
         }
