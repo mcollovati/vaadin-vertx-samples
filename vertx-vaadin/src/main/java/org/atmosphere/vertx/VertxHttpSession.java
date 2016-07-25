@@ -46,7 +46,7 @@ public class VertxHttpSession implements HttpSession {
         this(new VertxWrappedSession(Objects.requireNonNull(session)));
     }
 
-    VertxHttpSession(VertxWrappedSession session) {
+    public VertxHttpSession(VertxWrappedSession session) {
         this.delegate = Objects.requireNonNull(session);
     }
 

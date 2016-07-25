@@ -26,8 +26,19 @@ import com.vaadin.server.WrappedSession;
 import io.vertx.ext.web.Session;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import org.atmosphere.vertx.VertxHttpSession;
 
+import javax.servlet.http.HttpSessionBindingEvent;
+import javax.servlet.http.HttpSessionBindingListener;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 /**
  * Created by marco on 16/07/16.
@@ -54,22 +65,51 @@ public class VertxWrappedSession implements WrappedSession {
 
     @Override
     public Object getAttribute(String name) {
+        checkSessionState();
         return delegate.get(name);
     }
 
     @Override
+    // TODO: fire HttpSessionAttributeListener
     public void setAttribute(String name, Object value) {
-        delegate.put(name, value);
+        checkSessionState();
+        if (value == null) {
+            removeAttribute(name);
+        } else {
+            tryCastHttpSessionBindingListener(delegate.get(name))
+                .ifPresent(oldValue -> oldValue.valueUnbound(createHttpSessionBindingEvent(name, oldValue)));
+            delegate.put(name, value);
+            tryCastHttpSessionBindingListener(value)
+                .ifPresent(listener -> listener.valueBound(createHttpSessionBindingEvent(name, value)));
+        }
+    }
+
+    private Optional<HttpSessionBindingListener> tryCastHttpSessionBindingListener(Object value) {
+        return Optional.ofNullable(value)
+            .filter(HttpSessionBindingListener.class::isInstance)
+            .map(HttpSessionBindingListener.class::cast);
+    }
+
+    private HttpSessionBindingEvent createHttpSessionBindingEvent(String name, Object value) {
+        return new HttpSessionBindingEvent(new VertxHttpSession(this), name, value);
     }
 
     @Override
     public Set<String> getAttributeNames() {
+        checkSessionState();
         return delegate.data().keySet();
     }
 
     @Override
+    // TODO: catch HttpSessionBindingListener exceptions?
     public void invalidate() {
+        checkSessionState();
+        Map<String, HttpSessionBindingListener> toUnbind = delegate.data().entrySet().stream()
+            .filter( entry -> HttpSessionBindingListener.class.isInstance(entry.getValue()))
+            .collect(toMap(e -> e.getKey(), e -> HttpSessionBindingListener.class.cast(e.getValue())));
         delegate.destroy();
+        toUnbind.forEach( (name, listener) -> listener.valueUnbound(createHttpSessionBindingEvent(name,listener)));
+        toUnbind.clear();
     }
 
     @Override
@@ -96,4 +136,11 @@ public class VertxWrappedSession implements WrappedSession {
     public void removeAttribute(String name) {
         delegate.remove(name);
     }
+
+    private void checkSessionState() {
+        if (delegate.isDestroyed()) {
+            throw new IllegalStateException("Session already invalidated");
+        }
+    }
+
 }
