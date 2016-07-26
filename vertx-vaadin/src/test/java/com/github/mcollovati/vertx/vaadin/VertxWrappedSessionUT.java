@@ -1,7 +1,6 @@
 package com.github.mcollovati.vertx.vaadin;
 
 import io.vertx.ext.web.Session;
-import org.assertj.core.api.Assertions;
 import org.assertj.core.api.ThrowableAssert;
 import org.atmosphere.vertx.VertxHttpSession;
 import org.junit.Before;
@@ -14,15 +13,13 @@ import org.mockito.junit.MockitoRule;
 
 import javax.servlet.http.HttpSessionBindingEvent;
 import javax.servlet.http.HttpSessionBindingListener;
-
-import java.util.Collections;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
 import static java.util.Collections.emptyMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -49,13 +46,16 @@ public class VertxWrappedSessionUT {
     }
 
     @Test
-    public void getMaxInactiveInterval() throws Exception {
-
+    public void souldDelegateGetMaxInactiveInterval() throws Exception {
+        long timeout = 30000L;
+        when(session.timeout()).thenReturn(timeout);
+        assertThat(vertxWrappedSession.getMaxInactiveInterval())
+            .isEqualTo(Long.valueOf(timeout).intValue() / 1000);
     }
 
     @Test
     public void setMaxInactiveInterval() throws Exception {
-
+        // TODO: implement me
     }
 
     @Test
@@ -163,34 +163,61 @@ public class VertxWrappedSessionUT {
     }
 
     @Test
-    public void invalidatShouldThrowExceptionWhenSessionIsInvalidated() {
+    public void invalidateShouldThrowExceptionWhenSessionIsInvalidated() {
         shouldThrowExceptionWhenSessionIsInvalidated(() -> vertxWrappedSession.invalidate());
     }
 
-
     @Test
-    public void getId() throws Exception {
-
+    public void shouldDelegateGetId() throws Exception {
+        String sessionId = "sessionId";
+        when(session.id()).thenReturn(sessionId);
+        assertThat(vertxWrappedSession.getId()).isEqualTo(sessionId);
     }
 
     @Test
     public void getCreationTime() throws Exception {
-
+        // TODO: implement me
     }
 
     @Test
-    public void getLastAccessedTime() throws Exception {
-
+    public void shouldDelegateGetLastAccessedTime() throws Exception {
+        long lastAccessed = Instant.now().minusSeconds(10).toEpochMilli();
+        when(session.lastAccessed()).thenReturn(lastAccessed);
+        assertThat(vertxWrappedSession.getLastAccessedTime()).isEqualTo(lastAccessed);
+    }
+    @Test
+    public void getLastAccessedTimeShouldThrowExceptionWhenSessionIsInvalidated() {
+        shouldThrowExceptionWhenSessionIsInvalidated(() -> vertxWrappedSession.getLastAccessedTime());
     }
 
     @Test
-    public void isNew() throws Exception {
-
+    public void isNewShouldBeTrueIfLastAccessedIsNotSet() throws Exception {
+        when(session.lastAccessed()).thenReturn(0L,System.currentTimeMillis());
+        assertThat(vertxWrappedSession.isNew()).isTrue();
+        assertThat(vertxWrappedSession.isNew()).isFalse();
+    }
+    @Test
+    public void isNewShouldThrowExceptionWhenSessionIsInvalidated() {
+        shouldThrowExceptionWhenSessionIsInvalidated(() -> vertxWrappedSession.isNew());
     }
 
     @Test
-    public void removeAttribute() throws Exception {
-
+    public void shouldDelegateRemoveAttribute() throws Exception {
+        vertxWrappedSession.removeAttribute("attrName");
+        verify(session).remove("attrName");
+    }
+    @Test
+    public void removeAttributeShuoldInvokeValueUnboundForHttpSessionBindingListeners() throws Exception {
+        String attrName = "attributeName";
+        when(session.remove(attrName)).thenReturn(sessionBindingListenerObject);
+        vertxWrappedSession.removeAttribute(attrName);
+        ArgumentCaptor<HttpSessionBindingEvent> sessionBindingEventCaptor = ArgumentCaptor.forClass(HttpSessionBindingEvent.class);
+        verify(sessionBindingListenerObject).valueUnbound(sessionBindingEventCaptor.capture());
+        assertHttpSessionBindingEvent(attrName, sessionBindingEventCaptor.getValue());
+    }
+    @Test
+    public void removeAttributeShouldThrowExceptionWhenSessionIsInvalidated() {
+        shouldThrowExceptionWhenSessionIsInvalidated(() -> vertxWrappedSession.removeAttribute("attr"));
     }
 
 

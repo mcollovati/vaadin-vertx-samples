@@ -22,6 +22,7 @@
  */
 package com.github.mcollovati.vertx.vaadin;
 
+import com.github.mcollovati.vertx.Sync;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.server.WrappedSession;
 import io.vertx.core.Future;

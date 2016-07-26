@@ -30,14 +30,10 @@ import org.atmosphere.vertx.VertxHttpSession;
 
 import javax.servlet.http.HttpSessionBindingEvent;
 import javax.servlet.http.HttpSessionBindingListener;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
 /**
@@ -55,7 +51,7 @@ public class VertxWrappedSession implements WrappedSession {
 
     @Override
     public int getMaxInactiveInterval() {
-        return Long.valueOf(delegate.timeout()).intValue();
+        return Long.valueOf(delegate.timeout()).intValue() / 1000;
     }
 
     @Override
@@ -84,16 +80,6 @@ public class VertxWrappedSession implements WrappedSession {
         }
     }
 
-    private Optional<HttpSessionBindingListener> tryCastHttpSessionBindingListener(Object value) {
-        return Optional.ofNullable(value)
-            .filter(HttpSessionBindingListener.class::isInstance)
-            .map(HttpSessionBindingListener.class::cast);
-    }
-
-    private HttpSessionBindingEvent createHttpSessionBindingEvent(String name, Object value) {
-        return new HttpSessionBindingEvent(new VertxHttpSession(this), name, value);
-    }
-
     @Override
     public Set<String> getAttributeNames() {
         checkSessionState();
@@ -106,7 +92,7 @@ public class VertxWrappedSession implements WrappedSession {
         checkSessionState();
         Map<String, HttpSessionBindingListener> toUnbind = delegate.data().entrySet().stream()
             .filter( entry -> HttpSessionBindingListener.class.isInstance(entry.getValue()))
-            .collect(toMap(e -> e.getKey(), e -> HttpSessionBindingListener.class.cast(e.getValue())));
+            .collect(toMap(Map.Entry::getKey, e -> HttpSessionBindingListener.class.cast(e.getValue())));
         delegate.destroy();
         toUnbind.forEach( (name, listener) -> listener.valueUnbound(createHttpSessionBindingEvent(name,listener)));
         toUnbind.clear();
@@ -124,23 +110,36 @@ public class VertxWrappedSession implements WrappedSession {
 
     @Override
     public long getLastAccessedTime() {
+        checkSessionState();
         return delegate.lastAccessed();
     }
 
     @Override
     public boolean isNew() {
-        return false;
+        checkSessionState();
+        return delegate.lastAccessed() == 0L;
     }
 
     @Override
     public void removeAttribute(String name) {
-        delegate.remove(name);
+        checkSessionState();
+        tryCastHttpSessionBindingListener(delegate.remove(name))
+            .ifPresent(oldValue -> oldValue.valueUnbound(createHttpSessionBindingEvent(name, oldValue)));
     }
 
     private void checkSessionState() {
         if (delegate.isDestroyed()) {
             throw new IllegalStateException("Session already invalidated");
         }
+    }
+    private Optional<HttpSessionBindingListener> tryCastHttpSessionBindingListener(Object value) {
+        return Optional.ofNullable(value)
+            .filter(HttpSessionBindingListener.class::isInstance)
+            .map(HttpSessionBindingListener.class::cast);
+    }
+
+    private HttpSessionBindingEvent createHttpSessionBindingEvent(String name, Object value) {
+        return new HttpSessionBindingEvent(new VertxHttpSession(this), name, value);
     }
 
 }

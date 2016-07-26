@@ -22,29 +22,39 @@
  */
 package com.github.mcollovati.vertx.vaadin;
 
+import com.vaadin.annotations.VaadinServletConfiguration;
+import com.vaadin.server.VaadinRequest;
+import com.vaadin.ui.UI;
 import io.vertx.core.Vertx;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
+import io.vertx.ext.web.Router;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Created by marco on 16/07/16.
  */
 @RunWith(VertxUnitRunner.class)
 @Ignore
-public class FirstVerticleIT {
+public class MySessionTestIT {
 
+    private static final int PORT = 8080;
     Vertx vertx;
+    SessionTestVerticle testVerticle;
 
     @Before
     public void setUp(TestContext context) {
         vertx = Vertx.vertx();
-        vertx.deployVerticle(FirstVerticle.class.getName(), context.asyncAssertSuccess());
+        testVerticle = new SessionTestVerticle();
+        vertx.deployVerticle(testVerticle, context.asyncAssertSuccess());
     }
 
     @After
@@ -54,13 +64,44 @@ public class FirstVerticleIT {
 
     @Test
     public void testVerticle(TestContext context) {
+
         final Async async = context.async();
 
-        vertx.createHttpClient().getNow(8080, "localhost", "/",
+        vertx.createHttpClient().getNow(PORT, "localhost", "/",
             response -> response.handler(b -> {
-                context.assertTrue(b.toString().contains("Mandi"));
+                context.assertTrue(b.toString().contains("Done"));
                 async.complete();
             })
         );
     }
+
+    @VaadinServletConfiguration(productionMode = false, ui = MyUi.class)
+    public static class SessionTestVerticle extends VaadinVerticle {
+
+        List<String> sessionEvents = new ArrayList<>();
+
+        void registerSessionEvent(String event) {
+            sessionEvents.add(event);
+        }
+
+        @Override
+        protected void serviceInitialized(Router router) {
+            router.get("/destroySession").handler(rc -> {
+                rc.session().destroy();
+                rc.response().end("Session destroyed");
+            });
+        }
+
+    }
+
+    public static class MyUi extends UI {
+
+        @Override
+        protected void init(VaadinRequest request) {
+            request.getService().addSessionDestroyListener(e -> {
+                ((SessionTestVerticle)((VertxVaadinService) e.getService()).getVerticle()).registerSessionEvent("Session destroyed");
+            });
+        }
+    }
+
 }

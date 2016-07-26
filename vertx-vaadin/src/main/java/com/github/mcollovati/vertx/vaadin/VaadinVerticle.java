@@ -111,7 +111,6 @@ public class VaadinVerticle extends AbstractVerticle {
         vaadinRouter.route("/VAADIN/*").handler(StaticHandler.create("VAADIN", getClass().getClassLoader()));
         vaadinRouter.route().handler(BodyHandler.create());
 
-
         vaadinRouter.route("/*").handler(routingContext -> {
             //dump(routingContext);
             HttpServerRequest req = routingContext.request();
@@ -131,13 +130,13 @@ public class VaadinVerticle extends AbstractVerticle {
         router.mountSubRouter(mountPoint, vaadinRouter);
 
         httpServer.requestHandler(router::accept).listen(config().getInteger("httpPort", 8080));
-        serviceInitialized();
+        serviceInitialized(vaadinRouter);
 
         log.info("Started vaadin verticle " + getClass().getName());
         startFuture.complete();
     }
 
-    protected void serviceInitialized() {
+    protected void serviceInitialized(Router router) {
     }
 
     protected VertxVaadinService createVaadinService() {
@@ -154,6 +153,7 @@ public class VaadinVerticle extends AbstractVerticle {
         }
         return LocalSessionStore.create(vertx);
     }
+
 
     private void dump(RoutingContext routingContext) {
         System.out.println("URI: " + routingContext.request().uri());
