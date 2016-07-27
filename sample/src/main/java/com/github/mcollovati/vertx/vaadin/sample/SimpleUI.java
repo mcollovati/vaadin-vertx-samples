@@ -12,6 +12,7 @@ import org.vaadin.viritin.label.Header;
 import org.vaadin.viritin.layouts.MVerticalLayout;
 
 import javax.servlet.http.Cookie;
+import java.time.Instant;
 
 /**
  * Created by marco on 21/07/16.
@@ -31,7 +32,8 @@ public class SimpleUI extends UI {
         setContent(new MVerticalLayout(
             new Header("Vert.x Vaadin Sample").setHeaderLevel(1),
             new Label(String.format("Verticle %s deployed on Vert.x",
-                req.getService().getVerticle().deploymentID()))
+                req.getService().getVerticle().deploymentID())),
+            new Label("Session created at " + Instant.ofEpochMilli(req.getWrappedSession().getCreationTime()))
         ).withFullWidth());
     }
 

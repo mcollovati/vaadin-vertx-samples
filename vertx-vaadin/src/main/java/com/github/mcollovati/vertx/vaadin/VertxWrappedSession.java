@@ -22,6 +22,7 @@
  */
 package com.github.mcollovati.vertx.vaadin;
 
+import com.github.mcollovati.vertx.web.ExtendedSession;
 import com.vaadin.server.WrappedSession;
 import io.vertx.ext.web.Session;
 import lombok.AccessLevel;
@@ -43,9 +44,9 @@ import static java.util.stream.Collectors.toMap;
 public class VertxWrappedSession implements WrappedSession {
 
 
-    private final Session delegate;
+    private final ExtendedSession delegate;
 
-    public Session getVertxSession() {
+    public ExtendedSession getVertxSession() {
         return delegate;
     }
 
@@ -56,7 +57,7 @@ public class VertxWrappedSession implements WrappedSession {
 
     @Override
     public void setMaxInactiveInterval(int interval) {
-        // TODO
+        throw new UnsupportedOperationException("Setting max interval is not supported on Vert.x session");
     }
 
     @Override
@@ -105,7 +106,7 @@ public class VertxWrappedSession implements WrappedSession {
 
     @Override
     public long getCreationTime() {
-        return 0;
+        return delegate.createdAt();
     }
 
     @Override

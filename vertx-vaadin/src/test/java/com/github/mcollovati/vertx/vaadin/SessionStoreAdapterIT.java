@@ -44,7 +44,7 @@ import java.util.List;
  */
 @RunWith(VertxUnitRunner.class)
 @Ignore
-public class MySessionTestIT {
+public class SessionStoreAdapterIT {
 
     private static final int PORT = 8080;
     Vertx vertx;

@@ -1,6 +1,6 @@
 package com.github.mcollovati.vertx.vaadin;
 
-import io.vertx.ext.web.Session;
+import com.github.mcollovati.vertx.web.ExtendedSession;
 import org.assertj.core.api.ThrowableAssert;
 import org.atmosphere.vertx.VertxHttpSession;
 import org.junit.Before;
@@ -27,13 +27,14 @@ import static org.mockito.Mockito.when;
 /**
  * Created by marco on 25/07/16.
  */
+@SuppressWarnings("unchecked")
 public class VertxWrappedSessionUT {
 
     @Rule
     public MockitoRule mokitoRule = MockitoJUnit.rule();
 
     @Mock
-    Session session;
+    ExtendedSession session;
 
     @Mock
     HttpSessionBindingListener sessionBindingListenerObject;
@@ -46,7 +47,7 @@ public class VertxWrappedSessionUT {
     }
 
     @Test
-    public void souldDelegateGetMaxInactiveInterval() throws Exception {
+    public void shouldDelegateGetMaxInactiveInterval() throws Exception {
         long timeout = 30000L;
         when(session.timeout()).thenReturn(timeout);
         assertThat(vertxWrappedSession.getMaxInactiveInterval())
@@ -54,8 +55,9 @@ public class VertxWrappedSessionUT {
     }
 
     @Test
-    public void setMaxInactiveInterval() throws Exception {
-        // TODO: implement me
+    public void setMaxInactiveIntervalIsNotSupported() throws Exception {
+        assertThatExceptionOfType(UnsupportedOperationException.class)
+            .isThrownBy(() -> vertxWrappedSession.setMaxInactiveInterval(10));
     }
 
     @Test
@@ -112,8 +114,6 @@ public class VertxWrappedSessionUT {
         assertThat(sessionBindingEvent.getName()).isEqualTo(attrName);
         assertThat(sessionBindingEvent.getValue()).isEqualTo(value);
     }
-
-    // TODO: test javax.servlet.http.HttpSessionAttributeListener
 
     @Test
     public void setAttributeShouldThrowExceptionWhenSessionIsInvalidated() {
@@ -175,8 +175,10 @@ public class VertxWrappedSessionUT {
     }
 
     @Test
-    public void getCreationTime() throws Exception {
-        // TODO: implement me
+    public void shouldDelegateGetCreationTime() throws Exception {
+        long now = Instant.now().minusSeconds(60 * 20).toEpochMilli();
+        when(session.createdAt()).thenReturn(now);
+        assertThat(vertxWrappedSession.getCreationTime()).isEqualTo(now);
     }
 
     @Test
