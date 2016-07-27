@@ -22,12 +22,20 @@
  */
 package com.github.mcollovati.vertx.vaadin;
 
+import com.github.mcollovati.vertx.web.ExtendedSession;
 import com.vaadin.server.WrappedSession;
 import io.vertx.ext.web.Session;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import org.atmosphere.vertx.VertxHttpSession;
 
+import javax.servlet.http.HttpSessionBindingEvent;
+import javax.servlet.http.HttpSessionBindingListener;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+
+import static java.util.stream.Collectors.toMap;
 
 /**
  * Created by marco on 16/07/16.
@@ -36,40 +44,59 @@ import java.util.Set;
 public class VertxWrappedSession implements WrappedSession {
 
 
-    private final Session delegate;
+    private final ExtendedSession delegate;
 
-    public Session getVertxSession() {
+    public ExtendedSession getVertxSession() {
         return delegate;
     }
 
     @Override
     public int getMaxInactiveInterval() {
-        return Long.valueOf(delegate.timeout()).intValue();
+        return Long.valueOf(delegate.timeout()).intValue() / 1000;
     }
 
     @Override
     public void setMaxInactiveInterval(int interval) {
-        // TODO
+        throw new UnsupportedOperationException("Setting max interval is not supported on Vert.x session");
     }
 
     @Override
     public Object getAttribute(String name) {
+        checkSessionState();
         return delegate.get(name);
     }
 
     @Override
+    // TODO: fire HttpSessionAttributeListener
     public void setAttribute(String name, Object value) {
-        delegate.put(name, value);
+        checkSessionState();
+        if (value == null) {
+            removeAttribute(name);
+        } else {
+            tryCastHttpSessionBindingListener(delegate.get(name))
+                .ifPresent(oldValue -> oldValue.valueUnbound(createHttpSessionBindingEvent(name, oldValue)));
+            delegate.put(name, value);
+            tryCastHttpSessionBindingListener(value)
+                .ifPresent(listener -> listener.valueBound(createHttpSessionBindingEvent(name, value)));
+        }
     }
 
     @Override
     public Set<String> getAttributeNames() {
+        checkSessionState();
         return delegate.data().keySet();
     }
 
     @Override
+    // TODO: catch HttpSessionBindingListener exceptions?
     public void invalidate() {
+        checkSessionState();
+        Map<String, HttpSessionBindingListener> toUnbind = delegate.data().entrySet().stream()
+            .filter( entry -> HttpSessionBindingListener.class.isInstance(entry.getValue()))
+            .collect(toMap(Map.Entry::getKey, e -> HttpSessionBindingListener.class.cast(e.getValue())));
         delegate.destroy();
+        toUnbind.forEach( (name, listener) -> listener.valueUnbound(createHttpSessionBindingEvent(name,listener)));
+        toUnbind.clear();
     }
 
     @Override
@@ -79,21 +106,41 @@ public class VertxWrappedSession implements WrappedSession {
 
     @Override
     public long getCreationTime() {
-        return 0;
+        return delegate.createdAt();
     }
 
     @Override
     public long getLastAccessedTime() {
+        checkSessionState();
         return delegate.lastAccessed();
     }
 
     @Override
     public boolean isNew() {
-        return false;
+        checkSessionState();
+        return delegate.lastAccessed() == 0L;
     }
 
     @Override
     public void removeAttribute(String name) {
-        delegate.remove(name);
+        checkSessionState();
+        tryCastHttpSessionBindingListener(delegate.remove(name))
+            .ifPresent(oldValue -> oldValue.valueUnbound(createHttpSessionBindingEvent(name, oldValue)));
     }
+
+    private void checkSessionState() {
+        if (delegate.isDestroyed()) {
+            throw new IllegalStateException("Session already invalidated");
+        }
+    }
+    private Optional<HttpSessionBindingListener> tryCastHttpSessionBindingListener(Object value) {
+        return Optional.ofNullable(value)
+            .filter(HttpSessionBindingListener.class::isInstance)
+            .map(HttpSessionBindingListener.class::cast);
+    }
+
+    private HttpSessionBindingEvent createHttpSessionBindingEvent(String name, Object value) {
+        return new HttpSessionBindingEvent(new VertxHttpSession(this), name, value);
+    }
+
 }

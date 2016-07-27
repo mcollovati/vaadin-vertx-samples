@@ -20,7 +20,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.github.mcollovati.vertx.vaadin;
+package com.github.mcollovati.vertx;
 
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;

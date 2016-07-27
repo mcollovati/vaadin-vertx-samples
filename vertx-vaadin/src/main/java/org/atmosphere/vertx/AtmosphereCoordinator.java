@@ -15,6 +15,7 @@
  */
 package org.atmosphere.vertx;
 
+import com.github.mcollovati.vertx.web.ExtendedSession;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.core.Handler;
 import io.vertx.core.VoidHandler;
@@ -197,6 +198,7 @@ public class AtmosphereCoordinator {
             .queryStrings(params);
 
         Optional.ofNullable(session)
+            .map(ExtendedSession::adapt)
             .map(VertxHttpSession::new)
             .ifPresent(requestBuilder::session);
 
@@ -295,6 +297,7 @@ public class AtmosphereCoordinator {
             final AtmosphereRequest r = AtmosphereUtils.request(request, builder -> {
                 if (routingContext != null) {
                     Optional.ofNullable(routingContext.session())
+                        .map(ExtendedSession::adapt)
                         .map(VertxHttpSession::new)
                         .ifPresent(builder::session);
                 }

@@ -22,6 +22,7 @@
  */
 package com.github.mcollovati.vertx.vaadin;
 
+import com.github.mcollovati.vertx.web.sstore.SessionStoreAdapter;
 import com.vaadin.annotations.VaadinServletConfiguration;
 import com.vaadin.server.DefaultDeploymentConfiguration;
 import com.vaadin.server.ServiceException;
@@ -95,7 +96,7 @@ public class VaadinVerticle extends AbstractVerticle {
 
 
         String sessionCookieName = config().getString("sessionCookieName", "vertx-web.session");
-        SessionStore sessionStore = createSessionStore();
+        SessionStore sessionStore = SessionStoreAdapter.adapt(createSessionStore());
         SessionHandler sessionHandler = SessionHandler.create(sessionStore)
             .setSessionCookieName(sessionCookieName)
             .setCookieHttpOnlyFlag(true);
@@ -107,10 +108,9 @@ public class VaadinVerticle extends AbstractVerticle {
 
         Router vaadinRouter = Router.router(vertx);
         vaadinRouter.route().handler(CookieHandler.create());
-        vaadinRouter.route().handler(sessionHandler);
         vaadinRouter.route("/VAADIN/*").handler(StaticHandler.create("VAADIN", getClass().getClassLoader()));
         vaadinRouter.route().handler(BodyHandler.create());
-
+        vaadinRouter.route().handler(sessionHandler);
 
         vaadinRouter.route("/*").handler(routingContext -> {
             //dump(routingContext);
@@ -131,13 +131,13 @@ public class VaadinVerticle extends AbstractVerticle {
         router.mountSubRouter(mountPoint, vaadinRouter);
 
         httpServer.requestHandler(router::accept).listen(config().getInteger("httpPort", 8080));
-        serviceInitialized();
+        serviceInitialized(vaadinRouter);
 
         log.info("Started vaadin verticle " + getClass().getName());
         startFuture.complete();
     }
 
-    protected void serviceInitialized() {
+    protected void serviceInitialized(Router router) {
     }
 
     protected VertxVaadinService createVaadinService() {
@@ -154,6 +154,7 @@ public class VaadinVerticle extends AbstractVerticle {
         }
         return LocalSessionStore.create(vertx);
     }
+
 
     private void dump(RoutingContext routingContext) {
         System.out.println("URI: " + routingContext.request().uri());

@@ -23,7 +23,7 @@
 package org.atmosphere.vertx;
 
 import com.github.mcollovati.vertx.vaadin.VertxWrappedSession;
-import io.vertx.ext.web.Session;
+import com.github.mcollovati.vertx.web.ExtendedSession;
 import lombok.experimental.Delegate;
 
 import javax.servlet.ServletContext;
@@ -42,11 +42,11 @@ public class VertxHttpSession implements HttpSession {
     @Delegate(excludes = Exclusions.class)
     VertxWrappedSession delegate;
 
-    VertxHttpSession(Session session) {
+    VertxHttpSession(ExtendedSession session) {
         this(new VertxWrappedSession(Objects.requireNonNull(session)));
     }
 
-    VertxHttpSession(VertxWrappedSession session) {
+    public VertxHttpSession(VertxWrappedSession session) {
         this.delegate = Objects.requireNonNull(session);
     }
 

@@ -23,6 +23,7 @@
 package com.github.mcollovati.vertx.vaadin;
 
 import com.github.mcollovati.vertx.utils.RandomStringGenerator;
+import com.github.mcollovati.vertx.web.ExtendedSession;
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.generator.InRange;
@@ -206,7 +207,7 @@ public class VertxVaadinRequestUT {
         assertThat(vaadinRequest.getWrappedSession(true)).isNull();
         assertThat(vaadinRequest.getWrappedSession(false)).isNull();
 
-        Session session = mock(Session.class);
+        Session session = mock(ExtendedSession.class);
         when(routingContext.session()).thenReturn(session);
         assertThat(vaadinRequest.getWrappedSession()).isExactlyInstanceOf(VertxWrappedSession.class)
             .extracting(ws -> ((VertxWrappedSession) ws).getVertxSession()).containsExactly(session);

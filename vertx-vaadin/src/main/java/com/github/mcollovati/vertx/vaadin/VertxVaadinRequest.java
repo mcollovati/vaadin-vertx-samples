@@ -22,6 +22,8 @@
  */
 package com.github.mcollovati.vertx.vaadin;
 
+import com.github.mcollovati.vertx.Sync;
+import com.github.mcollovati.vertx.web.ExtendedSession;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.server.WrappedSession;
 import io.vertx.core.Future;
@@ -151,6 +153,7 @@ public class VertxVaadinRequest implements VaadinRequest {
     @Override
     public WrappedSession getWrappedSession(boolean allowSessionCreation) {
         return Optional.ofNullable(routingContext.session())
+            .map(ExtendedSession::adapt)
             .map(VertxWrappedSession::new).orElse(null);
     }
 
