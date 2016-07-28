@@ -2,28 +2,54 @@ package com.github.mcollovati.vertx.web.sstore;
 
 import com.github.mcollovati.vertx.web.ExtendedSession;
 import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.MessageProducer;
+import io.vertx.core.shareddata.LocalMap;
 import io.vertx.ext.web.Session;
 import io.vertx.ext.web.sstore.LocalSessionStore;
 import io.vertx.ext.web.sstore.impl.LocalSessionStoreImpl;
-import lombok.AccessLevel;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
+import org.fest.reflect.core.Reflection;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * Created by marco on 27/07/16.
  */
-@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
-public class LocalSessionStoreAdapter implements LocalSessionStore {
+public class LocalSessionStoreAdapter extends LocalSessionStoreImpl {
 
-    @NonNull
-    private final LocalSessionStoreImpl delegate;
+
+    private final MessageProducer<String> sessionExpiredProducer;
+    //private final LocalSessionStoreImpl delegate;
+    //private LocalMap<String, Session> localMap;
+
+
+    @SuppressWarnings("unchecked")
+    static LocalSessionStoreAdapter of(MessageProducer<String> sessionExpiredProducer, LocalSessionStoreImpl delegate) {
+        LocalMap<String, Session> localMap = Reflection.field("localMap").ofType(LocalMap.class).in(delegate).get();
+        String sessionMapName = Reflection.field("name").ofType(String.class).in(localMap).get();
+        Vertx vertx = Reflection.field("vertx").ofType(Vertx.class).in(delegate).get();
+        long reaperInterval = Reflection.field("reaperInterval").ofType(long.class).in(delegate).get();
+        delegate.close();
+        return new LocalSessionStoreAdapter(vertx, sessionMapName, reaperInterval, sessionExpiredProducer);
+    }
+
+    public LocalSessionStoreAdapter(Vertx vertx, String sessionMapName, long reaperInterval, MessageProducer<String> sessionExpiredProducer) {
+        super(vertx, sessionMapName, reaperInterval);
+        this.sessionExpiredProducer = Objects.requireNonNull(sessionExpiredProducer);
+        //this.delegate = delegate;
+    }
 
     @Override
     public ExtendedSession createSession(long timeout) {
-        return ExtendedSession.adapt(delegate.createSession(timeout));
+        //return ExtendedSession.adapt(delegate.createSession(timeout));
+        return ExtendedSession.adapt(super.createSession(timeout));
     }
 
+    /*
     @Override
     public long retryTimeout() {
         return delegate.retryTimeout();
@@ -58,10 +84,16 @@ public class LocalSessionStoreAdapter implements LocalSessionStore {
     public void close() {
         delegate.close();
     }
+    */
 
     public void handle(Long tid) {
-        delegate.handle(tid);
+        Map<String, Session> copy = new HashMap<>();
+        localMap.keySet().forEach(k -> copy.put(k, localMap.get(k)));
+        super.handle(tid);
+        localMap.keySet().forEach(copy::remove);
+        Future f = Future.future();
+        copy.values().stream().map(Session::id).forEach(sessionExpiredProducer::send);
+        copy.clear();
     }
-
 
 }
