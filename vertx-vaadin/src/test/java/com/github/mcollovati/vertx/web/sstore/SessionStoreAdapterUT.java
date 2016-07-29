@@ -3,6 +3,7 @@ package com.github.mcollovati.vertx.web.sstore;
 import com.github.mcollovati.vertx.web.ExtendedSession;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
@@ -11,6 +12,7 @@ import io.vertx.ext.web.Session;
 import io.vertx.ext.web.sstore.ClusteredSessionStore;
 import io.vertx.ext.web.sstore.LocalSessionStore;
 import io.vertx.ext.web.sstore.SessionStore;
+import io.vertx.spi.cluster.hazelcast.HazelcastClusterManager;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -78,4 +80,26 @@ public class SessionStoreAdapterUT {
         ExtendedSession extendedSession = (ExtendedSession) session;
         assertThat(extendedSession.createdAt()).isBetween(before, Instant.now().toEpochMilli());
     }
+
+    @Test(timeout = 15000L)
+    public void shouldFireSessionExpiredEventForHazelcastSessionStore(TestContext context) {
+        Async async = context.async();
+        Vertx.clusteredVertx(new VertxOptions().setClusterManager(new HazelcastClusterManager()), res -> {
+
+            vertx = res.result();
+            SessionStore adapted = SessionStoreAdapter.adapt(vertx, ClusteredSessionStore.create(vertx));
+            Session session = adapted.createSession(2000);
+
+            sessionExpiredConsumer = SessionStoreAdapter.sessionExpiredHandler(vertx, event -> {
+                context.assertEquals(session.id(), event.body());
+                async.countDown();
+            });
+            adapted.put(session, Future.<Boolean>future().completer());
+            session.put("a", "b");
+
+        });
+
+    }
+
+
 }
