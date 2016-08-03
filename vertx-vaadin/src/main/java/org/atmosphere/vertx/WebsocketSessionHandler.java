@@ -54,7 +54,11 @@ public class WebsocketSessionHandler implements Handler<ServerWebSocket> {
 
     @Override
     public void handle(ServerWebSocket serverWebSocket) {
-        if (!serverWebSocket.path().startsWith(mountPoint + "/PUSH")) {
+        String basePath = Optional.ofNullable(mountPoint)
+            .map(m -> m.substring(0, m.lastIndexOf('/')) )
+            .orElse("");
+
+        if (!serverWebSocket.path().startsWith(basePath + "/PUSH")) {
             serverWebSocket.reject();
         }
         String cookieHeader = serverWebSocket.headers().get(COOKIE);
