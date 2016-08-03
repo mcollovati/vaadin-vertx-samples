@@ -488,7 +488,7 @@ public class VertxPushHandler extends PushHandler {
      * @since 7.5.0
      */
     void onConnect(AtmosphereResource resource) {
-        callWithUi(resource, establishCallback, false);
+        callWithUi(resource, establishCallback, resource.transport() == TRANSPORT.WEBSOCKET);
     }
 
     /**

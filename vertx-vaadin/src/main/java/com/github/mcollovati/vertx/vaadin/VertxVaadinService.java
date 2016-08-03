@@ -90,10 +90,15 @@ public class VertxVaadinService extends VaadinService {
 
     private static class VertxVaadinSession extends VaadinSession {
         private static final Logger logger = LoggerFactory.getLogger(VertxVaadinSession.class);
-        private final MessageConsumer<String> sessionExpiredConsumer;
+        private transient MessageConsumer<String> sessionExpiredConsumer;
 
         public VertxVaadinSession(VertxVaadinService service) {
             super(service);
+            createSessionExpireConsumer(service);
+        }
+
+        private void createSessionExpireConsumer(VertxVaadinService service) {
+            Optional.ofNullable(sessionExpiredConsumer).ifPresent(MessageConsumer::unregister);
             this.sessionExpiredConsumer = SessionStoreAdapter.sessionExpiredHandler(service.getVertx(), this::onSessionExpired);
         }
 
@@ -110,7 +115,12 @@ public class VertxVaadinService extends VaadinService {
             } finally {
                 this.sessionExpiredConsumer.unregister();
             }
+        }
 
+        @Override
+        public void refreshTransients(WrappedSession wrappedSession, VaadinService vaadinService) {
+            super.refreshTransients(wrappedSession, vaadinService);
+            createSessionExpireConsumer((VertxVaadinService)vaadinService);
         }
     }
 
