@@ -1,5 +1,6 @@
 package com.github.mcollovati.vertx.web;
 
+import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.shareddata.Shareable;
 import io.vertx.core.shareddata.impl.ClusterSerializable;
@@ -7,6 +8,7 @@ import io.vertx.ext.web.Session;
 import io.vertx.ext.web.sstore.impl.SessionImpl;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by marco on 27/07/16.
@@ -15,6 +17,8 @@ public class ExtendedSessionImpl implements ExtendedSession, Shareable, ClusterS
 
     protected Session delegate;
     private long createdAt;
+    private Map<Integer, Handler<Void>> headersEndHandlers;
+    private AtomicInteger handlerSeq = new AtomicInteger();
 
     public ExtendedSessionImpl() {
         this.delegate = new SessionImpl();
@@ -23,6 +27,16 @@ public class ExtendedSessionImpl implements ExtendedSession, Shareable, ClusterS
     public ExtendedSessionImpl(Session delegate) {
         this.delegate = delegate;
         this.createdAt = System.currentTimeMillis();
+    }
+
+    @Override
+    public int addExpiredHandler(Handler<ExtendedSession> handler) {
+        return 0;
+    }
+
+    @Override
+    public boolean removeHeadersEndHandler(int handlerID) {
+        return false;
     }
 
     @Override
@@ -83,12 +97,12 @@ public class ExtendedSessionImpl implements ExtendedSession, Shareable, ClusterS
     @Override
     public void writeToBuffer(Buffer buffer) {
         buffer.appendLong(createdAt);
-        ((ClusterSerializable)delegate).writeToBuffer(buffer);
+        ((ClusterSerializable) delegate).writeToBuffer(buffer);
     }
 
     @Override
     public int readFromBuffer(int pos, Buffer buffer) {
         createdAt = buffer.getLong(pos);
-        return ((ClusterSerializable)delegate).readFromBuffer(pos + 8, buffer);
+        return ((ClusterSerializable) delegate).readFromBuffer(pos + 8, buffer);
     }
 }

@@ -22,6 +22,7 @@
  */
 package com.github.mcollovati.vertx.vaadin;
 
+import com.github.mcollovati.vertx.web.sstore.SessionStoreAdapter;
 import com.vaadin.server.DefaultDeploymentConfiguration;
 import com.vaadin.server.RequestHandler;
 import com.vaadin.server.ServiceException;
@@ -31,14 +32,18 @@ import com.vaadin.server.VaadinService;
 import com.vaadin.server.VaadinServlet;
 import com.vaadin.server.VaadinServletService;
 import com.vaadin.server.VaadinSession;
+import com.vaadin.server.WrappedSession;
 import com.vaadin.server.communication.ServletBootstrapHandler;
 import com.vaadin.server.communication.ServletUIInitHandler;
 import com.vaadin.ui.UI;
 import com.vaadin.ui.themes.ValoTheme;
 import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.eventbus.MessageConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.http.HttpSessionBindingEvent;
 import java.io.File;
 import java.io.InputStream;
 import java.util.List;
@@ -76,6 +81,47 @@ public class VertxVaadinService extends VaadinService {
             });
         }
         return handlers;
+    }
+
+    @Override
+    protected VaadinSession createVaadinSession(VaadinRequest request) throws ServiceException {
+        return new VertxVaadinSession(this);
+    }
+
+    private static class VertxVaadinSession extends VaadinSession {
+        private static final Logger logger = LoggerFactory.getLogger(VertxVaadinSession.class);
+        private transient MessageConsumer<String> sessionExpiredConsumer;
+
+        public VertxVaadinSession(VertxVaadinService service) {
+            super(service);
+            createSessionExpireConsumer(service);
+        }
+
+        private void createSessionExpireConsumer(VertxVaadinService service) {
+            Optional.ofNullable(sessionExpiredConsumer).ifPresent(MessageConsumer::unregister);
+            this.sessionExpiredConsumer = SessionStoreAdapter.sessionExpiredHandler(service.getVertx(), this::onSessionExpired);
+        }
+
+        private void onSessionExpired(Message<String> message) {
+            Optional.ofNullable(this.getSession())
+                .filter(ws -> ws.getId().equals(message.body()))
+                .ifPresent(WrappedSession::invalidate);
+        }
+
+        @Override
+        public void valueUnbound(HttpSessionBindingEvent event) {
+            try {
+                super.valueUnbound(event);
+            } finally {
+                this.sessionExpiredConsumer.unregister();
+            }
+        }
+
+        @Override
+        public void refreshTransients(WrappedSession wrappedSession, VaadinService vaadinService) {
+            super.refreshTransients(wrappedSession, vaadinService);
+            createSessionExpireConsumer((VertxVaadinService)vaadinService);
+        }
     }
 
     @Override
@@ -172,6 +218,11 @@ public class VertxVaadinService extends VaadinService {
         return vaadinVerticle.deploymentID() + Math.abs(vaadinVerticle.deploymentID().hashCode());
     }
 
+
+    @Override
+    public void destroy() {
+        super.destroy();
+    }
 
     public Vertx getVertx() {
         return vaadinVerticle.getVertx();

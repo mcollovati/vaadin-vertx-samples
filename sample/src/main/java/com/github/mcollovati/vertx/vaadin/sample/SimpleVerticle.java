@@ -5,6 +5,7 @@ import com.github.mcollovati.vertx.vaadin.VaadinVerticleConfiguration;
 import com.vaadin.annotations.VaadinServletConfiguration;
 import io.vertx.core.Context;
 import io.vertx.core.Vertx;
+import io.vertx.ext.web.sstore.SessionStore;
 
 /**
  * Created by marco on 22/07/16.
@@ -17,5 +18,10 @@ public class SimpleVerticle extends VaadinVerticle {
     public void init(Vertx vertx, Context context) {
         super.init(vertx, context);
         context.config().put("httpPort", 9090);
+    }
+
+    @Override
+    protected SessionStore createSessionStore() {
+        return super.createSessionStore();
     }
 }

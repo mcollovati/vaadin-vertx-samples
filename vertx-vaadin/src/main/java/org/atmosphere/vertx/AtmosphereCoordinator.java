@@ -275,7 +275,6 @@ public class AtmosphereCoordinator {
     }
 
     public AtmosphereCoordinator route(final RoutingContext routingContext) {
-        System.out.println("========================= AHAH non WS PUSH");
         return route(routingContext.request(), routingContext);
     }
 
@@ -317,9 +316,7 @@ public class AtmosphereCoordinator {
                         logger.debug("exceptionHandler", event);
                         AsynchronousProcessor.class.cast(framework.getAsyncSupport())
                             .cancelled(r, res);
-                    } catch (IOException e) {
-                        logger.debug("", e);
-                    } catch (ServletException e) {
+                    } catch (IOException | ServletException e) {
                         logger.debug("", e);
                     }
                 }

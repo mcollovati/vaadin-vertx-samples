@@ -65,6 +65,8 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.Properties;
 
+import static io.vertx.ext.web.handler.SessionHandler.DEFAULT_SESSION_TIMEOUT;
+
 /**
  * Created by marco on 16/07/16.
  */
@@ -96,8 +98,9 @@ public class VaadinVerticle extends AbstractVerticle {
 
 
         String sessionCookieName = config().getString("sessionCookieName", "vertx-web.session");
-        SessionStore sessionStore = SessionStoreAdapter.adapt(createSessionStore());
+        SessionStore sessionStore = SessionStoreAdapter.adapt(vertx, createSessionStore());
         SessionHandler sessionHandler = SessionHandler.create(sessionStore)
+            .setSessionTimeout(config().getLong("sessionTimeout", DEFAULT_SESSION_TIMEOUT))
             .setSessionCookieName(sessionCookieName)
             .setCookieHttpOnlyFlag(true);
 
@@ -224,6 +227,7 @@ public class VaadinVerticle extends AbstractVerticle {
     @Override
     public void stop() throws Exception {
         log.info("Stopping vaadin verticle " + getClass().getName());
+        service.destroy();
         httpServer.close();
         log.info("Stopped vaadin verticle " + getClass().getName());
     }

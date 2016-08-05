@@ -70,15 +70,6 @@ public class VertxWrappedSessionWithLocalSessionStoreUT {
         session.setAttribute("key", listener1);
         session.invalidate();
     }
-    @Test(timeout = 5000L)
-    @Ignore
-    public void shouldInvokeBindingListenerWhenSessionExpires(TestContext context) {
-        final Async async = context.async(2);
-        VertxWrappedSession session = new VertxWrappedSession(createSession(3000));
-        Listener listener1 = new Listener(async);
-        session.setAttribute("key", listener1);
-    }
-
 
 
     @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
