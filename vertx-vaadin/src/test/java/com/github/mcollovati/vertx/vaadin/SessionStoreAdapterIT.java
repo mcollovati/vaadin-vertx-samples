@@ -85,7 +85,7 @@ public class SessionStoreAdapterIT {
         }
 
         @Override
-        protected void serviceInitialized(Router router) {
+        protected void serviceInitialized(VertxVaadinService service, Router router) {
             context.put("mySelf", this);
             router.get("/destroySession").handler(rc -> {
                 rc.session().destroy();
