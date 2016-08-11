@@ -38,11 +38,11 @@ public class SimpleUI extends UI {
         Label sessionAttributeLabel = new MLabel().withCaption("Session listener");
 
 
+        String deploymentId = req.getService().getVertx().getOrCreateContext().deploymentID();
 
         setContent(new MVerticalLayout(
             new Header("Vert.x Vaadin Sample").setHeaderLevel(1),
-            new Label(String.format("Verticle %s deployed on Vert.x",
-                req.getService().getVerticle().deploymentID())),
+            new Label(String.format("Verticle %s deployed on Vert.x", deploymentId)),
             new Label("Session created at " + Instant.ofEpochMilli(req.getWrappedSession().getCreationTime())),
             sessionAttributeLabel
         ).withFullWidth());

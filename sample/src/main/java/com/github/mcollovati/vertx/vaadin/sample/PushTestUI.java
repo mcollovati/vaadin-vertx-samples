@@ -31,7 +31,7 @@ public class PushTestUI extends UI {
     protected void init(VaadinRequest request) {
 
         Vertx vertx = ((VertxVaadinService)request.getService()).getVertx();
-        VaadinVerticle verticle = ((VertxVaadinService)request.getService()).getVerticle();
+        String deploymentId = ((VertxVaadinService)request.getService()).getServiceName();
 
 
 
@@ -39,7 +39,7 @@ public class PushTestUI extends UI {
         AtomicLong timerId = new AtomicLong(-1);
         VerticalLayout verticalLayout = new VerticalLayout();
         verticalLayout.addComponent(new Label("OK!!!! " + getLocale()));
-        verticalLayout.addComponent(new Label("Vertx!!!! " + verticle.deploymentID() ));
+        verticalLayout.addComponent(new Label("Vertx!!!! " + deploymentId ));
         verticalLayout.addComponent(new Label("Session ID!!!! " + request.getWrappedSession().getId() ));
         verticalLayout.addComponent(time);
         verticalLayout.addComponent(new Button("CLICK", e -> {

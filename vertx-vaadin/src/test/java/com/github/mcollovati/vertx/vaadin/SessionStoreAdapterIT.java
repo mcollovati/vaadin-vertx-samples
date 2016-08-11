@@ -86,6 +86,7 @@ public class SessionStoreAdapterIT {
 
         @Override
         protected void serviceInitialized(Router router) {
+            context.put("mySelf", this);
             router.get("/destroySession").handler(rc -> {
                 rc.session().destroy();
                 rc.response().end("Session destroyed");
@@ -99,7 +100,8 @@ public class SessionStoreAdapterIT {
         @Override
         protected void init(VaadinRequest request) {
             request.getService().addSessionDestroyListener(e -> {
-                ((SessionTestVerticle)((VertxVaadinService) e.getService()).getVerticle()).registerSessionEvent("Session destroyed");
+                ((SessionTestVerticle)((VertxVaadinService) e.getService()).getVertx().getOrCreateContext().get("mySelf"))
+                    .registerSessionEvent("Session destroyed");
             });
         }
     }

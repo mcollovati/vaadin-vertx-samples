@@ -56,11 +56,15 @@ public class VertxVaadinService extends VaadinService {
 
     private static final Logger logger = LoggerFactory.getLogger(VertxVaadinService.class);
 
-    private final VaadinVerticle vaadinVerticle;
+    private final VertxVaadin vertxVaadin;
 
-    public VertxVaadinService(VaadinVerticle vaadinVerticle, DefaultDeploymentConfiguration deploymentConfiguration) {
+    public VertxVaadinService(VertxVaadin vertxVaadin, DefaultDeploymentConfiguration deploymentConfiguration) {
         super(deploymentConfiguration);
-        this.vaadinVerticle = vaadinVerticle;
+        this.vertxVaadin = vertxVaadin;
+    }
+
+    public Vertx getVertx() {
+        return vertxVaadin.vertx();
     }
 
     @Override
@@ -120,7 +124,7 @@ public class VertxVaadinService extends VaadinService {
         @Override
         public void refreshTransients(WrappedSession wrappedSession, VaadinService vaadinService) {
             super.refreshTransients(wrappedSession, vaadinService);
-            createSessionExpireConsumer((VertxVaadinService)vaadinService);
+            createSessionExpireConsumer((VertxVaadinService) vaadinService);
         }
     }
 
@@ -191,6 +195,7 @@ public class VertxVaadinService extends VaadinService {
         return false;
     }
 
+    // From VaadinServletService
     private boolean isOtherRequest(VaadinRequest request) {
         // TODO This should be refactored in some way. It should not be
         // necessary to check all these types.
@@ -203,9 +208,10 @@ public class VertxVaadinService extends VaadinService {
             .isPushRequest(request));
     }
 
+    // TODO: verify
     @Override
     public String getServiceName() {
-        return vaadinVerticle.deploymentID();
+        return vertxVaadin.serviceName();
     }
 
     @Override
@@ -213,9 +219,24 @@ public class VertxVaadinService extends VaadinService {
         return null;
     }
 
+    // Adapted from VaadinServletService
     @Override
     public String getMainDivId(VaadinSession session, VaadinRequest request, Class<? extends UI> uiClass) {
-        return vaadinVerticle.deploymentID() + Math.abs(vaadinVerticle.deploymentID().hashCode());
+        String appId = request.getPathInfo();
+        if (appId == null || "".equals(appId) || "/".equals(appId)) {
+            appId = "ROOT";
+        }
+        appId = appId.replaceAll("[^a-zA-Z0-9]", "");
+        // Add hashCode to the end, so that it is still (sort of)
+        // predictable, but indicates that it should not be used in CSS
+        // and
+        // such:
+        int hashCode = appId.hashCode();
+        if (hashCode < 0) {
+            hashCode = -hashCode;
+        }
+        appId = appId + "-" + hashCode;
+        return appId;
     }
 
 
@@ -224,13 +245,6 @@ public class VertxVaadinService extends VaadinService {
         super.destroy();
     }
 
-    public Vertx getVertx() {
-        return vaadinVerticle.getVertx();
-    }
-
-    public VaadinVerticle getVerticle() {
-        return vaadinVerticle;
-    }
 
 
 }
