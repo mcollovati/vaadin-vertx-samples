@@ -1,7 +1,9 @@
 package com.vaadin.demo.dashboard;
 
 import com.github.mcollovati.vertx.vaadin.VaadinVerticle;
+import com.github.mcollovati.vertx.vaadin.VertxVaadinService;
 import com.vaadin.annotations.VaadinServletConfiguration;
+import io.vertx.ext.web.Router;
 
 /**
  * Created by marco on 23/07/16.
@@ -10,8 +12,7 @@ import com.vaadin.annotations.VaadinServletConfiguration;
 public class DashboardDemoVerticle extends VaadinVerticle {
 
     @Override
-    protected void verticleInitialized() {
-        super.verticleInitialized();
-        getService().addSessionInitListener(new DashboardSessionInitListener());
+    protected void serviceInitialized(VertxVaadinService service, Router router) {
+        service.addSessionInitListener(new DashboardSessionInitListener());
     }
 }

@@ -11,3 +11,8 @@ release.properties
 dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
+
+
+### Vaadin ###
+**/VAADIN/gwt-unitCache/
+**/VAADIN/widgetsets/
