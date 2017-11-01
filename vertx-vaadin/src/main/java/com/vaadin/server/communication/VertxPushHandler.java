@@ -22,13 +22,18 @@
  */
 package com.vaadin.server.communication;
 
+import java.io.IOException;
+import java.io.Reader;
+import java.util.Collection;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import com.github.mcollovati.vertx.vaadin.VertxVaadinRequest;
 import com.github.mcollovati.vertx.vaadin.VertxVaadinService;
 import com.vaadin.server.ErrorEvent;
 import com.vaadin.server.ErrorHandler;
-import com.vaadin.server.LegacyCommunicationManager.InvalidUIDLSecurityKeyException;
 import com.vaadin.server.ServiceException;
-import com.vaadin.server.ServletPortletHelper;
+import com.vaadin.server.ServletHelper;
 import com.vaadin.server.SessionExpiredException;
 import com.vaadin.server.SystemMessages;
 import com.vaadin.server.VaadinRequest;
@@ -45,12 +50,6 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResource.TRANSPORT;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-
-import java.io.IOException;
-import java.io.Reader;
-import java.util.Collection;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Handles incoming push connections and messages and dispatches them to the
@@ -103,7 +102,7 @@ public class VertxPushHandler extends PushHandler {
                     e);
                 // Refresh on client side
                 sendRefreshAndDisconnect(resource);
-            } catch (InvalidUIDLSecurityKeyException e) {
+            } catch (ServerRpcHandler.InvalidUIDLSecurityKeyException e) {
                 getLogger().log(Level.WARNING,
                     "Invalid security key received from {0}",
                     resource.getRequest().getRemoteHost());
@@ -166,7 +165,7 @@ public class VertxPushHandler extends PushHandler {
     }
 
     private static AtmospherePushConnection getConnectionForUI(UI ui) {
-        PushConnection pushConnection = ui.getPushConnection();
+        PushConnection pushConnection = ui.getInternals().getPushConnection();
         if (pushConnection instanceof AtmospherePushConnection) {
             return (AtmospherePushConnection) pushConnection;
         } else {
@@ -177,7 +176,7 @@ public class VertxPushHandler extends PushHandler {
     private static UI findUiUsingResource(AtmosphereResource resource,
                                           Collection<UI> uIs) {
         for (UI ui : uIs) {
-            PushConnection pushConnection = ui.getPushConnection();
+            PushConnection pushConnection = ui.getInternals().getPushConnection();
             if (pushConnection instanceof AtmospherePushConnection) {
                 if (ExposeVaadinCommunicationPkg.resourceFromPushConnection(ui) == resource) {
                     return ui;
@@ -285,15 +284,8 @@ public class VertxPushHandler extends PushHandler {
                     "Could not get session. This should never happen", e);
                 return;
             } catch (SessionExpiredException e) {
-                SystemMessages msg = service.getSystemMessages(
-                    ServletPortletHelper.findLocale(null, null,
-                        vaadinRequest), vaadinRequest);
-                sendNotificationAndDisconnect(
-                    resource,
-                    VaadinService.createCriticalNotificationJSON(
-                        msg.getSessionExpiredCaption(),
-                        msg.getSessionExpiredMessage(), null,
-                        msg.getSessionExpiredURL()));
+                sendNotificationAndDisconnect(resource,
+                    VaadinService.createSessionExpiredJSON());
                 return;
             }
 
@@ -305,7 +297,7 @@ public class VertxPushHandler extends PushHandler {
 
                 if (ui == null) {
                     sendNotificationAndDisconnect(resource,
-                        ExposeVaadinCommunicationPkg.getUINotFoundErrorJSON(service, vaadinRequest));
+                        VaadinService.createUINotFoundJSON());
                 } else {
                     callback.run(resource, ui);
                 }
@@ -313,11 +305,10 @@ public class VertxPushHandler extends PushHandler {
                 callErrorHandler(session, e);
             } catch (final Exception e) {
                 SystemMessages msg = service.getSystemMessages(
-                    ServletPortletHelper.findLocale(null, null,
-                        vaadinRequest), vaadinRequest);
+                    ServletHelper.findLocale(null, vaadinRequest), vaadinRequest);
 
                 AtmosphereResource errorResource = resource;
-                if (ui != null && ui.getPushConnection() != null) {
+                if (ui != null && ui.getInternals().getPushConnection() != null) {
                     // We MUST use the opened push connection if there is one.
                     // Otherwise we will write the response to the wrong request
                     // when using streaming (the client -> server request

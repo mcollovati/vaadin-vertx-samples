@@ -15,10 +15,22 @@
  */
 package org.atmosphere.vertx;
 
+import javax.servlet.ServletException;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
 import com.github.mcollovati.vertx.web.ExtendedSession;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.vertx.core.Handler;
-import io.vertx.core.VoidHandler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.ServerWebSocket;
@@ -32,8 +44,10 @@ import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.util.EndpointMapper;
@@ -43,19 +57,6 @@ import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.servlet.ServletException;
-import java.io.IOException;
-import java.lang.reflect.Method;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_FRAMEWORK;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
@@ -175,22 +176,22 @@ public class AtmosphereCoordinator {
         Map<String, List<String>> paramMap = new QueryStringDecoder("?" + webSocket.query()).parameters();
         Map<String, String[]> params = new LinkedHashMap<String, String[]>(paramMap.size());
         for (Map.Entry<String, List<String>> entry : paramMap.entrySet()) {
-            params.put(entry.getKey(), entry.getValue().toArray(new String[]{}));
+            params.put(entry.getKey(), entry.getValue().toArray(new String[] {}));
         }
 
         String contentType = "application/json";
         if (params.size() == 0) {
             // TODO: vert.x trim the query string, unfortunately.
-            params.put(X_ATMO_PROTOCOL, new String[]{"true"});
-            params.put(X_ATMOSPHERE_FRAMEWORK, new String[]{"2.1"});
-            params.put(X_ATMOSPHERE_TRACKING_ID, new String[]{"0"});
-            params.put(X_ATMOSPHERE_TRANSPORT, new String[]{"websocket"});
-            params.put("Content-Type", new String[]{contentType});
+            params.put(X_ATMO_PROTOCOL, new String[] {"true"});
+            params.put(X_ATMOSPHERE_FRAMEWORK, new String[] {"2.1"});
+            params.put(X_ATMOSPHERE_TRACKING_ID, new String[] {"0"});
+            params.put(X_ATMOSPHERE_TRANSPORT, new String[] {"websocket"});
+            params.put("Content-Type", new String[] {contentType});
         } else if (params.containsKey("Content-Type") && params.get("Content-Type").length > 0) {
             contentType = params.get("Content-Type")[0];
         }
 
-        AtmosphereRequest.Builder requestBuilder = new AtmosphereRequest.Builder()
+        AtmosphereRequest.Builder requestBuilder = new AtmosphereRequestImpl.Builder()
             .requestURI(webSocket.path())
             .requestURL("http://0.0.0.0" + webSocket.path())
             .contentType(contentType)
@@ -213,7 +214,7 @@ public class AtmosphereCoordinator {
 
         final WebSocket w = new VertxWebSocket(framework.getAtmosphereConfig(), webSocket);
         try {
-            webSocketProcessor.open(w, r, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), r, w));
+            webSocketProcessor.open(w, r, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), r, w));
         } catch (IOException e) {
             logger.debug("", e);
         }
@@ -232,13 +233,11 @@ public class AtmosphereCoordinator {
                 webSocketProcessor.close(w, 1006);
             }
         });
-        webSocket.closeHandler(new VoidHandler() {
-            @Override
-            protected void handle() {
+        webSocket.closeHandler(event -> {
                 w.close();
                 webSocketProcessor.close(w, 1005);
             }
-        });
+        );
         return this;
     }
 
@@ -303,9 +302,10 @@ public class AtmosphereCoordinator {
             });
             r.setAttribute(RoutingContext.class.getName(), routingContext);
             r.setAttribute(HttpServerRequest.class.getName(), request);
-            r.attributes().putAll(routingContext.data());
+            //r.attributes().putAll(routingContext.data());
+            routingContext.data().forEach(r.localAttributes()::put);
 
-            final AtmosphereResponse res = new AtmosphereResponse.Builder()
+            final AtmosphereResponse res = new AtmosphereResponseImpl.Builder()
                 .asyncIOWriter(w)
                 .writeHeader(false)
                 .request(r).build();

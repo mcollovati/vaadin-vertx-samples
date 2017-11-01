@@ -2,19 +2,15 @@ package com.github.mcollovati.vertx.vaadin.sample;
 
 import com.github.mcollovati.vertx.vaadin.VaadinVerticle;
 import com.github.mcollovati.vertx.vaadin.VaadinVerticleConfiguration;
-import com.github.mcollovati.vertx.vaadin.VertxVaadin;
-import com.vaadin.annotations.VaadinServletConfiguration;
+import com.vaadin.server.VaadinServletConfiguration;
 import io.vertx.core.Context;
 import io.vertx.core.Vertx;
-import io.vertx.core.json.JsonObject;
-import io.vertx.ext.web.sstore.SessionStore;
-import sun.security.krb5.internal.crypto.crc32;
 
 /**
  * Created by marco on 22/07/16.
  */
-@VaadinVerticleConfiguration(mountPoint = "/simple")
-@VaadinServletConfiguration(ui = SimpleUI.class, productionMode = false)
+@VaadinVerticleConfiguration(mountPoint = "/simple", basePackages = "com.github.mcollovati.vertx.vaadin.sample")
+@VaadinServletConfiguration(productionMode = false)
 public class SimpleVerticle extends VaadinVerticle {
 
     @Override

@@ -9,6 +9,7 @@ import io.vertx.ext.web.sstore.impl.SessionImpl;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 /**
  * Created by marco on 27/07/16.
@@ -37,6 +38,11 @@ public class ExtendedSessionImpl implements ExtendedSession, Shareable, ClusterS
     @Override
     public boolean removeHeadersEndHandler(int handlerID) {
         return false;
+    }
+
+    @Override
+    public Session regenerateId() {
+        return delegate.regenerateId();
     }
 
     @Override
@@ -80,6 +86,16 @@ public class ExtendedSessionImpl implements ExtendedSession, Shareable, ClusterS
     }
 
     @Override
+    public boolean isRegenerated() {
+        return delegate.isRegenerated();
+    }
+
+    @Override
+    public String oldId() {
+        return delegate.oldId();
+    }
+
+    @Override
     public long timeout() {
         return delegate.timeout();
     }
@@ -104,5 +120,10 @@ public class ExtendedSessionImpl implements ExtendedSession, Shareable, ClusterS
     public int readFromBuffer(int pos, Buffer buffer) {
         createdAt = buffer.getLong(pos);
         return ((ClusterSerializable) delegate).readFromBuffer(pos + 8, buffer);
+    }
+
+    @Override
+    public void withStandardSession(Consumer<Session> consumer) {
+        consumer.accept(delegate);
     }
 }

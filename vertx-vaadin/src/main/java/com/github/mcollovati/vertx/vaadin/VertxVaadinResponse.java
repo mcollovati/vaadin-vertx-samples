@@ -23,7 +23,6 @@
 package com.github.mcollovati.vertx.vaadin;
 
 
-import com.vaadin.server.ExposeVaadinServerPkg;
 import com.vaadin.server.VaadinResponse;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpHeaders;
@@ -127,10 +126,28 @@ public class VertxVaadinResponse implements VaadinResponse {
         });
     }
 
+
     @Override
     public void setCacheTime(long milliseconds) {
-        ExposeVaadinServerPkg.setCacheTime(this, milliseconds);
+        doSetCacheTime(this, milliseconds);
     }
+
+    private static void doSetCacheTime(VaadinResponse response,
+        long milliseconds) {
+        if (milliseconds <= 0) {
+            response.setHeader("Cache-Control", "no-cache");
+            response.setHeader("Pragma", "no-cache");
+            response.setDateHeader("Expires", 0);
+        } else {
+            response.setHeader("Cache-Control",
+                "max-age=" + milliseconds / 1000);
+            response.setDateHeader("Expires",
+                System.currentTimeMillis() + milliseconds);
+            // Required to apply caching in some Tomcats
+            response.setHeader("Pragma", "cache");
+        }
+    }
+
 
     @Override
     public void sendError(int errorCode, String message) throws IOException {

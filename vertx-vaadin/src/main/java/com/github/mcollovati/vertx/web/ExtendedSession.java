@@ -1,5 +1,7 @@
 package com.github.mcollovati.vertx.web;
 
+import java.util.function.Consumer;
+
 import io.vertx.core.Handler;
 import io.vertx.ext.web.Session;
 
@@ -33,7 +35,7 @@ public interface ExtendedSession extends Session {
      */
     boolean removeHeadersEndHandler(int handlerID);
 
-
+    void withStandardSession(Consumer<Session> consumer);
 
 
     static ExtendedSession adapt(Session session) {

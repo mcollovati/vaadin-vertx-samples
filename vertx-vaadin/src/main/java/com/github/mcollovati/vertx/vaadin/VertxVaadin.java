@@ -1,14 +1,23 @@
 package com.github.mcollovati.vertx.vaadin;
 
+import javax.servlet.ServletContext;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+
 import com.github.mcollovati.vertx.web.sstore.SessionStoreAdapter;
-import com.vaadin.annotations.VaadinServletConfiguration;
+import com.vaadin.function.DeploymentConfiguration;
 import com.vaadin.server.DefaultDeploymentConfiguration;
 import com.vaadin.server.ServiceException;
-import com.vaadin.server.VaadinSession;
 import com.vaadin.server.communication.PushAtmosphereHandler;
 import com.vaadin.server.communication.VertxPushHandler;
 import com.vaadin.shared.communication.PushConstants;
-import com.vaadin.ui.UI;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxException;
@@ -23,6 +32,7 @@ import io.vertx.ext.web.handler.StaticHandler;
 import io.vertx.ext.web.sstore.ClusteredSessionStore;
 import io.vertx.ext.web.sstore.LocalSessionStore;
 import io.vertx.ext.web.sstore.SessionStore;
+import lombok.experimental.Delegate;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.cpr.ApplicationConfig;
@@ -35,11 +45,6 @@ import org.atmosphere.vertx.ExposeAtmosphere;
 import org.atmosphere.vertx.VertxAtmosphere;
 import org.atmosphere.vertx.WebsocketSessionHandler;
 
-import java.lang.reflect.Method;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Properties;
-
 import static io.vertx.ext.web.handler.SessionHandler.DEFAULT_SESSION_TIMEOUT;
 
 public class VertxVaadin {
@@ -50,15 +55,6 @@ public class VertxVaadin {
     private final Router router;
     private final Handler<ServerWebSocket> webSocketHandler;
 
-
-    // TODO: change JsonObject to VaadinOptions interface
-    public static VertxVaadin create(Vertx vertx, SessionStore sessionStore, JsonObject config) {
-        return new VertxVaadin(vertx, sessionStore, config);
-    }
-
-    public static VertxVaadin create(Vertx vertx, JsonObject config) {
-        return new VertxVaadin(vertx, config);
-    }
 
     private VertxVaadin(Vertx vertx, Optional<SessionStore> sessionStore, JsonObject config) {
         this.vertx = Objects.requireNonNull(vertx);
@@ -82,6 +78,14 @@ public class VertxVaadin {
         this(vertx, Optional.empty(), config);
     }
 
+    // TODO: change JsonObject to VaadinOptions interface
+    public static VertxVaadin create(Vertx vertx, SessionStore sessionStore, JsonObject config) {
+        return new VertxVaadin(vertx, sessionStore, config);
+    }
+
+    public static VertxVaadin create(Vertx vertx, JsonObject config) {
+        return new VertxVaadin(vertx, config);
+    }
 
     public Router router() {
         return router;
@@ -147,7 +151,10 @@ public class VertxVaadin {
 
         Router vaadinRouter = Router.router(vertx);
         vaadinRouter.route().handler(CookieHandler.create());
+        vaadinRouter.route("/VAADIN/static/client/*").handler(StaticHandler.create("META-INF/resources/VAADIN/static/client", getClass().getClassLoader()));
         vaadinRouter.route("/VAADIN/*").handler(StaticHandler.create("VAADIN", getClass().getClassLoader()));
+        vaadinRouter.route("/frontend/*").handler(StaticHandler.create("frontend", getClass().getClassLoader()));
+        vaadinRouter.route("/frontend-es6/*").handler(StaticHandler.create("frontend-es6", getClass().getClassLoader()));
         vaadinRouter.route().handler(BodyHandler.create());
         vaadinRouter.route().handler(sessionHandler);
 
@@ -235,59 +242,78 @@ public class VertxVaadin {
         return atmosphereCoordinator;
     }
 
-    private DefaultDeploymentConfiguration createDeploymentConfiguration() {
-        return new DefaultDeploymentConfiguration(getClass(), initProperties());
+    private DeploymentConfiguration createDeploymentConfiguration() {
+        return new JsonDeploymentConfiguration(getClass(), config(), this::scanForResources);
+        //return new DefaultDeploymentConfiguration(getClass(), initProperties(), this::scanForResources);
     }
 
-    private Properties initProperties() {
-        Properties initParameters = new Properties();
-        //readUiFromEnclosingClass(initParameters);
-        //readConfigurationAnnotation(initParameters);
-        initParameters.putAll(config().getMap());
-        return initParameters;
-    }
+    protected void scanForResources(String basePath,
+        Predicate<String> consumer) {
+        Deque<String> queue = new ArrayDeque<>();
+        queue.add(basePath);
 
-    /*
-    private void readUiFromEnclosingClass(Properties initParameters) {
-        Class<?> enclosingClass = getClass().getEnclosingClass();
+        ServletContext context = new StubServletContext(vertx.getOrCreateContext());
+        int prefixLength = basePath.length();
 
-        if (enclosingClass != null && UI.class.isAssignableFrom(enclosingClass)) {
-            initParameters.put(VaadinSession.UI_PARAMETER,
-                enclosingClass.getName());
-        }
-    }
+        while (!queue.isEmpty()) {
+            String path = queue.removeLast();
+            boolean visit = consumer.test(path.substring(prefixLength));
 
-    private void readConfigurationAnnotation(Properties initParameters) {
-
-        VaadinServletConfiguration configAnnotation = getClass().getAnnotation(VaadinServletConfiguration.class);
-        if (configAnnotation != null) {
-            Method[] methods = VaadinServletConfiguration.class
-                .getDeclaredMethods();
-            for (Method method : methods) {
-                VaadinServletConfiguration.InitParameterName name =
-                    method.getAnnotation(VaadinServletConfiguration.InitParameterName.class);
-                assert name !=
-                    null : "All methods declared in VaadinServletConfiguration should have a @InitParameterName annotation";
-
-                try {
-                    Object value = method.invoke(configAnnotation);
-
-                    String stringValue;
-                    if (value instanceof Class<?>) {
-                        stringValue = ((Class<?>) value).getName();
-                    } else {
-                        stringValue = value.toString();
-                    }
-
-                    initParameters.setProperty(name.value(), stringValue);
-                } catch (Exception e) {
-                    // This should never happen
-                    throw new VertxException(
-                        "Could not read @VaadinServletConfiguration value "
-                            + method.getName(), e);
+            if (visit && path.endsWith("/")) {
+                Set<String> resourcePaths = context.getResourcePaths(path);
+                if (resourcePaths != null) {
+                    queue.addAll(resourcePaths);
                 }
             }
         }
     }
-    */
+
+    private Properties initProperties() {
+        Properties initParameters = new Properties();
+        initParameters.putAll(config().getMap());
+        return initParameters;
+    }
+
+
+    private static class JsonDeploymentConfiguration implements DeploymentConfiguration {
+
+        @Delegate
+        private final DeploymentConfiguration delegate;
+
+        public JsonDeploymentConfiguration(Class<?> systemPropertyBaseClass, JsonObject config,
+            BiConsumer<String, Predicate<String>> resourceScanner) {
+            Properties initParameters = new Properties();
+            initParameters.putAll(config.getMap());
+            this.delegate = new DefaultDeploymentConfiguration(systemPropertyBaseClass, initParameters, resourceScanner) {
+
+                @Override
+                public boolean getBooleanProperty(String propertyName, boolean defaultValue) throws IllegalArgumentException {
+                    if (config.containsKey(propertyName)) {
+                        try {
+                            return config.getBoolean(propertyName);
+                        } catch (Exception ex) { }
+                    }
+                    return super.getBooleanProperty(propertyName, defaultValue);
+                }
+
+                @SuppressWarnings("unchecked")
+                public <T> T getApplicationOrSystemProperty(String propertyName, T defaultValue,
+                    Function<String, T> converter) {
+                    if (config.containsKey(propertyName)) {
+                        try {
+                            return (T) config.getValue(propertyName);
+                        } catch (ClassCastException ex) {
+                        }
+                        try {
+                            return converter.apply(config.getString(propertyName));
+                        } catch (ClassCastException ex) {
+                        }
+                    }
+                    return super.getApplicationOrSystemProperty(propertyName, defaultValue, converter);
+                }
+
+            };
+        }
+
+    }
 }

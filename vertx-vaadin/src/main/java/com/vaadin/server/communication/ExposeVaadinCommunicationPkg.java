@@ -34,13 +34,9 @@ import java.io.Reader;
  * Created by marco on 18/07/16.
  */
 public interface ExposeVaadinCommunicationPkg {
-
-    static String getUINotFoundErrorJSON(VaadinService service, VaadinRequest vaadinRequest) {
-        return UidlRequestHandler.getUINotFoundErrorJSON(service, vaadinRequest);
-    }
-
+    
     static AtmosphereResource resourceFromPushConnection(UI ui) {
-        return ((AtmospherePushConnection) ui.getPushConnection()).getResource();
+        return ((AtmospherePushConnection) ui.getInternals().getPushConnection()).getResource();
     }
 
     static Reader readMessageFromPushConnection(AtmospherePushConnection pushConnection, Reader reader) throws IOException {

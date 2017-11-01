@@ -37,4 +37,6 @@ import java.lang.annotation.Target;
 public @interface VaadinVerticleConfiguration {
 
     String mountPoint() default "/";
+
+    String[] basePackages() default {};
 }

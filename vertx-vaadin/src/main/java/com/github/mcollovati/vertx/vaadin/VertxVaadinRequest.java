@@ -31,6 +31,7 @@ import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.auth.User;
+import io.vertx.ext.web.LanguageHeader;
 import io.vertx.ext.web.RoutingContext;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -78,10 +79,14 @@ public class VertxVaadinRequest implements VaadinRequest {
 
     }
 
-    private static Locale toJavaLocale(io.vertx.ext.web.Locale locale) {
+    private static Locale toJavaLocale(LanguageHeader locale) {
         return Optional.ofNullable(locale)
-            .map(loc -> new Locale(loc.language(), loc.country(), loc.variant()))
+            .map(loc -> new Locale(loc.tag(), orEmpty(loc.subtag()), orEmpty(loc.subtag(2))))
             .orElse(null);
+    }
+
+    private static String orEmpty(String value) {
+        return Optional.ofNullable(value).orElse("");
     }
 
     public static Optional<VertxVaadinRequest> tryCast(VaadinRequest request) {
@@ -167,7 +172,7 @@ public class VertxVaadinRequest implements VaadinRequest {
     @Override
     public Locale getLocale() {
         // TODO: in utility class
-        io.vertx.ext.web.Locale loc = routingContext.preferredLocale();
+        LanguageHeader loc = routingContext.preferredLanguage();
         return toJavaLocale(loc);
     }
 
@@ -237,7 +242,7 @@ public class VertxVaadinRequest implements VaadinRequest {
 
     @Override
     public Enumeration<Locale> getLocales() {
-        return Collections.enumeration(routingContext.acceptableLocales().stream()
+        return Collections.enumeration(routingContext.acceptableLanguages().stream()
             .map(VertxVaadinRequest::toJavaLocale).collect(toList()));
     }
 

@@ -16,3 +16,11 @@ buildNumber.properties
 ### Vaadin ###
 **/VAADIN/gwt-unitCache/
 **/VAADIN/widgetsets/
+
+# Frontend
+bower_components
+node
+node_modules
+etc
+build
+
