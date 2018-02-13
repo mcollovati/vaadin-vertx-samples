@@ -4,7 +4,9 @@ import com.github.mcollovati.vertx.web.sstore.SessionStoreAdapter;
 import com.vaadin.annotations.VaadinServletConfiguration;
 import com.vaadin.server.DefaultDeploymentConfiguration;
 import com.vaadin.server.ServiceException;
+import com.vaadin.server.VaadinServletRequest;
 import com.vaadin.server.VaadinSession;
+import com.vaadin.server.WrappedSession;
 import com.vaadin.server.communication.PushAtmosphereHandler;
 import com.vaadin.server.communication.VertxPushHandler;
 import com.vaadin.shared.communication.PushConstants;
@@ -69,7 +71,7 @@ public class VertxVaadin {
         } catch (Exception ex) {
             throw new VertxException("Cannot initialize Vaadin service", ex);
         }
-        SessionStore adaptedSessionStore = SessionStoreAdapter.adapt(vertx, sessionStore.orElseGet(this::createSessionStore));
+        SessionStore adaptedSessionStore = SessionStoreAdapter.adapt(service, sessionStore.orElseGet(this::createSessionStore));
         this.router = initRouter(adaptedSessionStore);
         this.webSocketHandler = initWebSocketHandler(this.router, adaptedSessionStore);
     }
@@ -168,7 +170,7 @@ public class VertxVaadin {
         serviceInitialized(vaadinRouter);
         return vaadinRouter;
     }
-
+    
     private Handler<ServerWebSocket> initWebSocketHandler(Router vaadinRouter, SessionStore sessionStore) {
 
         /*

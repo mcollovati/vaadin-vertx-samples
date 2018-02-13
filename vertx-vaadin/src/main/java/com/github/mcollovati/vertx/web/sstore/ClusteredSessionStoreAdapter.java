@@ -1,11 +1,15 @@
 package com.github.mcollovati.vertx.web.sstore;
 
+import java.util.Optional;
+
+import com.github.mcollovati.vertx.vaadin.VertxVaadinService;
+import com.github.mcollovati.vertx.vaadin.VertxWrappedSession;
 import com.github.mcollovati.vertx.web.ExtendedSession;
 import com.hazelcast.core.EntryEvent;
 import com.hazelcast.core.IMap;
+import com.hazelcast.map.MapInterceptor;
 import com.hazelcast.map.impl.MapListenerAdapter;
 import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.eventbus.MessageProducer;
 import io.vertx.core.shareddata.AsyncMap;
@@ -13,11 +17,7 @@ import io.vertx.ext.web.Session;
 import io.vertx.ext.web.sstore.ClusteredSessionStore;
 import io.vertx.ext.web.sstore.impl.ClusteredSessionStoreImpl;
 import io.vertx.spi.cluster.hazelcast.impl.HazelcastAsyncMap;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 import org.fest.reflect.core.Reflection;
-
-import java.util.Optional;
 
 /**
  * Created by marco on 27/07/16.
@@ -26,11 +26,14 @@ public class ClusteredSessionStoreAdapter implements ClusteredSessionStore {
 
     private final MessageProducer<String> sessionExpiredProducer;
     private final ClusteredSessionStoreImpl sessionStore;
+    private final VertxVaadinService vaadinService;
     private Runnable listenerCleaner;
 
-    public ClusteredSessionStoreAdapter(MessageProducer<String> sessionExpiredProducer, ClusteredSessionStoreImpl sessionStore) {
+    public ClusteredSessionStoreAdapter(MessageProducer<String> sessionExpiredProducer, ClusteredSessionStoreImpl sessionStore,
+                                        VertxVaadinService vaadinService) {
         this.sessionExpiredProducer = sessionExpiredProducer;
         this.sessionStore = sessionStore;
+        this.vaadinService = vaadinService;
     }
 
     @SuppressWarnings("unchecked")
@@ -38,11 +41,17 @@ public class ClusteredSessionStoreAdapter implements ClusteredSessionStore {
         if (listenerCleaner == null) {
             // TODO - move in separated jar as some sort of provider
             AsyncMap<String, Session> map = Reflection.field("sessionMap").ofType(AsyncMap.class).in(sessionStore).get();
-            String listenerId = tryGetHazelcastMap(map)
+            Optional<IMap> hazelcastMap = tryGetHazelcastMap(map);
+            String listenerId = hazelcastMap
                 .map(imap -> imap.addEntryListener(new MapListenerAdapter<String, Session>() {
                     @Override
                     public void entryExpired(EntryEvent<String, Session> event) {
                         sessionExpiredProducer.send(event.getKey());
+                    }
+
+                    @Override
+                    public void entryMerged(EntryEvent<String, Session> event) {
+                        vaadinService.loadSession(new VertxWrappedSession(ExtendedSession.adapt(event.getValue())));
                     }
                 }, true)).orElse(null);
             listenerCleaner = () -> tryGetHazelcastMap(map).ifPresent(imap -> imap.removeEntryListener(listenerId));
@@ -52,7 +61,7 @@ public class ClusteredSessionStoreAdapter implements ClusteredSessionStore {
     // TODO - move in separated jar as some sort of provider
     private Optional<IMap> tryGetHazelcastMap(AsyncMap<String, Session> map) {
         return Optional.ofNullable(map)
-            .map( m -> Reflection.field("delegate").ofType(AsyncMap.class).in(m).get())
+            .map(m -> Reflection.field("delegate").ofType(AsyncMap.class).in(m).get())
             .filter(HazelcastAsyncMap.class::isInstance)
             .map(HazelcastAsyncMap.class::cast)
             .map(h -> Reflection.field("map").ofType(IMap.class).in(h).get());
@@ -70,7 +79,13 @@ public class ClusteredSessionStoreAdapter implements ClusteredSessionStore {
 
     @Override
     public void get(String id, Handler<AsyncResult<Session>> resultHandler) {
-        sessionStore.get(id, resultHandler);
+        Handler<AsyncResult<Session>> refreshTransientAndDelegate = event -> {
+            if (event.succeeded() && event.result() != null) {
+                vaadinService.loadSession(new VertxWrappedSession(ExtendedSession.adapt(event.result())));
+            }
+            resultHandler.handle(event);
+        };
+        sessionStore.get(id, refreshTransientAndDelegate);
     }
 
     @Override

@@ -204,11 +204,7 @@ public class AtmosphereCoordinator {
 
         AtmosphereRequest r = requestBuilder.build();
 
-        HttpServerRequest request = requestfromAtmosphere(r);
-        RoutingContext routingContext = new RoutingContextImpl(null, null, request, Collections.emptySet());
-        routingContext.setSession(session);
-        r.setAttribute(RoutingContext.class.getName(), routingContext);
-        r.setAttribute(HttpServerRequest.class.getName(), request);
+        putResourceAttributes(session, r);
 
 
         final WebSocket w = new VertxWebSocket(framework.getAtmosphereConfig(), webSocket);
@@ -229,6 +225,7 @@ public class AtmosphereCoordinator {
             public void handle(Throwable event) {
                 w.close();
                 logger.debug("", event);
+                putResourceAttributes(session, w.resource().getRequest());
                 webSocketProcessor.close(w, 1006);
             }
         });
@@ -236,10 +233,21 @@ public class AtmosphereCoordinator {
             @Override
             protected void handle() {
                 w.close();
+                putResourceAttributes(session, w.resource().getRequest());
                 webSocketProcessor.close(w, 1005);
             }
         });
         return this;
+    }
+
+    private void putResourceAttributes(Session session, AtmosphereRequest r) {
+        if (r.getAttribute(RoutingContext.class.getName()) == null) {
+            HttpServerRequest request = requestfromAtmosphere(r);
+            RoutingContext routingContext = new RoutingContextImpl(null, null, request, Collections.emptySet());
+            routingContext.setSession(session);
+            r.setAttribute(RoutingContext.class.getName(), routingContext);
+            r.setAttribute(HttpServerRequest.class.getName(), request);
+        }
     }
 
     public AtmosphereCoordinator route(AtmosphereRequest request, AtmosphereResponse response) throws IOException {
