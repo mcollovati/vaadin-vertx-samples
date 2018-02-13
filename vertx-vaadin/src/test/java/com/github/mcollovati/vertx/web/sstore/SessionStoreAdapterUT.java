@@ -1,5 +1,9 @@
 package com.github.mcollovati.vertx.web.sstore;
 
+import java.time.Instant;
+import java.util.Optional;
+
+import com.github.mcollovati.vertx.vaadin.VertxVaadinService;
 import com.github.mcollovati.vertx.web.ExtendedSession;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
@@ -17,11 +21,10 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
-import java.time.Instant;
-import java.util.Optional;
+import org.mockito.Mockito;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 /**
  * Created by marco on 27/07/16.
@@ -30,11 +33,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class SessionStoreAdapterUT {
 
     Vertx vertx;
+    VertxVaadinService vertxVaadinService;
     MessageConsumer<String> sessionExpiredConsumer;
 
     @Before
     public void setUp(TestContext context) {
         vertx = Vertx.vertx();
+        vertxVaadinService = Mockito.mock(VertxVaadinService.class);
+        when(vertxVaadinService.getVertx()).thenAnswer(i -> vertx);
     }
 
     @After
@@ -47,7 +53,7 @@ public class SessionStoreAdapterUT {
     @Test
     public void shouldAdaptLocalSessionStore() {
         long before = Instant.now().toEpochMilli();
-        SessionStore adapted = SessionStoreAdapter.adapt(vertx, LocalSessionStore.create(vertx));
+        SessionStore adapted = SessionStoreAdapter.adapt(vertxVaadinService, LocalSessionStore.create(vertx));
         assertThat(adapted).isInstanceOf(LocalSessionStoreAdapter.class);
         Session session = adapted.createSession(1000);
         assertThat(session).isInstanceOf(ExtendedSession.class);
@@ -58,7 +64,7 @@ public class SessionStoreAdapterUT {
     @Test(timeout = 5000L)
     public void shouldFireSessionExpiredEventForLocalSessionStore(TestContext context) {
         Async async = context.async();
-        SessionStore adapted = SessionStoreAdapter.adapt(vertx, LocalSessionStore.create(vertx));
+        SessionStore adapted = SessionStoreAdapter.adapt(vertxVaadinService, LocalSessionStore.create(vertx));
         Session session = adapted.createSession(1000);
 
         sessionExpiredConsumer = SessionStoreAdapter.sessionExpiredHandler(vertx, event -> {
@@ -73,7 +79,7 @@ public class SessionStoreAdapterUT {
     @Test
     public void shouldAdaptClusteredLocalSessionStore() {
         long before = Instant.now().toEpochMilli();
-        SessionStore adapted = SessionStoreAdapter.adapt(vertx, ClusteredSessionStore.create(vertx));
+        SessionStore adapted = SessionStoreAdapter.adapt(vertxVaadinService, ClusteredSessionStore.create(vertx));
         assertThat(adapted).isInstanceOf(ClusteredSessionStoreAdapter.class);
         Session session = adapted.createSession(1000);
         assertThat(session).isInstanceOf(ExtendedSession.class);
@@ -87,7 +93,7 @@ public class SessionStoreAdapterUT {
         Vertx.clusteredVertx(new VertxOptions().setClusterManager(new HazelcastClusterManager()), res -> {
 
             vertx = res.result();
-            SessionStore adapted = SessionStoreAdapter.adapt(vertx, ClusteredSessionStore.create(vertx));
+            SessionStore adapted = SessionStoreAdapter.adapt(vertxVaadinService, ClusteredSessionStore.create(vertx));
             Session session = adapted.createSession(2000);
 
             sessionExpiredConsumer = SessionStoreAdapter.sessionExpiredHandler(vertx, event -> {

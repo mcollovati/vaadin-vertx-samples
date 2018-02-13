@@ -30,10 +30,7 @@ public class PushTestUI extends UI {
     @Override
     protected void init(VaadinRequest request) {
 
-        Vertx vertx = ((VertxVaadinService)request.getService()).getVertx();
-        String deploymentId = ((VertxVaadinService)request.getService()).getServiceName();
-
-
+        String deploymentId = request.getService().getServiceName();
 
         Label time = new Label();
         AtomicLong timerId = new AtomicLong(-1);
@@ -46,11 +43,11 @@ public class PushTestUI extends UI {
 
             if (timerId.get() == -1) {
                 timerId.set(
-                    vertx.setPeriodic(1000, event -> {
+                    getVertx().setPeriodic(1000, event -> {
                         access(() -> showNow(time, getLocale()));
                     }));
             } else {
-                vertx.cancelTimer(timerId.getAndSet(-1));
+                getVertx().cancelTimer(timerId.getAndSet(-1));
                 access(() -> time.setValue("STOP"));
             }
 
@@ -58,6 +55,11 @@ public class PushTestUI extends UI {
         showNow(time, getLocale());
         setContent(verticalLayout);
     }
+
+    private Vertx getVertx() {
+        return ((VertxVaadinService)getSession().getService()).getVertx();
+    }
+
 
     private static void showNow(Label label, Locale locale) {
         System.out.println("================ Show time " + LocalDateTime.now());

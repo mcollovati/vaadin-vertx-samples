@@ -27,6 +27,7 @@ import com.vaadin.server.DefaultDeploymentConfiguration;
 import com.vaadin.server.RequestHandler;
 import com.vaadin.server.ServiceException;
 import com.vaadin.server.ServletPortletHelper;
+import com.vaadin.server.SessionExpiredException;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.server.VaadinService;
 import com.vaadin.server.VaadinServlet;
@@ -85,6 +86,11 @@ public class VertxVaadinService extends VaadinService {
             });
         }
         return handlers;
+    }
+    
+    @Override
+    public VaadinSession loadSession(WrappedSession wrappedSession) {
+        return super.loadSession(wrappedSession);
     }
 
     @Override

@@ -6,6 +6,7 @@ import com.vaadin.annotations.Theme;
 import com.vaadin.annotations.Title;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.server.VaadinService;
+import com.vaadin.server.VaadinSession;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.Notification;
 import com.vaadin.ui.UI;
@@ -17,6 +18,7 @@ import org.vaadin.viritin.layouts.MVerticalLayout;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpSessionBindingEvent;
 import javax.servlet.http.HttpSessionBindingListener;
+import java.io.Serializable;
 import java.time.Instant;
 
 /**
@@ -51,21 +53,23 @@ public class SimpleUI extends UI {
     @Override
     public void attach() {
         super.attach();
-        HttpSessionBindingListener sessionAttr = new HttpSessionBindingListener() {
-            @Override
-            public void valueBound(HttpSessionBindingEvent event) {
-                System.out.println("================================================== bound " + event.getName());
-                getUI().access(() -> Notification.show("Attribute Set"));
+        //HttpSessionBindingListener sessionAttr = new SampleHttpSessionBindingListener();
+        //getSession().getSession().setAttribute("myAttribute", sessionAttr);
+    }
 
-            }
 
-            @Override
-            public void valueUnbound(HttpSessionBindingEvent event) {
-                System.out.println("================================================== unbound " + event.getName());
-                getUI().access(() -> Notification.show("Attribute removed"));
-            }
-        };
-        getSession().getSession().setAttribute("myAttribute", sessionAttr);
+    private class SampleHttpSessionBindingListener implements HttpSessionBindingListener, Serializable {
+        @Override
+        public void valueBound(HttpSessionBindingEvent event) {
+            System.out.println("================================================== bound " + event.getName());
+            getUI().access(() -> Notification.show("Attribute Set"));
 
+        }
+
+        @Override
+        public void valueUnbound(HttpSessionBindingEvent event) {
+            System.out.println("================================================== unbound " + event.getName());
+            getUI().access(() -> Notification.show("Attribute removed"));
+        }
     }
 }
