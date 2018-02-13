@@ -183,14 +183,12 @@
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>2.3</version>
                 <configuration>
-                    <!--
                     <relocations>
                         <relocation>
                             <pattern>org.atmosphere.vertx</pattern>
                             <shadedPattern>com.github.mcollovati.vertx.atmosphere</shadedPattern>
                         </relocation>
                     </relocations>
-                    -->
                     <filters>
                         <filter>
                             <artifact>org.atmosphere:atmosphere-vertx</artifact>
