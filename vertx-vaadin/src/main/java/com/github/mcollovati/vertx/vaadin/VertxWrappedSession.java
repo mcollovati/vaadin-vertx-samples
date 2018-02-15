@@ -22,18 +22,17 @@
  */
 package com.github.mcollovati.vertx.vaadin;
 
-import com.github.mcollovati.vertx.web.ExtendedSession;
-import com.vaadin.server.WrappedSession;
-import io.vertx.ext.web.Session;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import org.atmosphere.vertx.VertxHttpSession;
-
 import javax.servlet.http.HttpSessionBindingEvent;
 import javax.servlet.http.HttpSessionBindingListener;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+
+import com.github.mcollovati.vertx.web.ExtendedSession;
+import com.vaadin.server.WrappedSession;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import org.atmosphere.vertx.VertxHttpSession;
 
 import static java.util.stream.Collectors.toMap;
 

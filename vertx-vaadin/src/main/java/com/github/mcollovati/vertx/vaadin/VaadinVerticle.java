@@ -32,6 +32,8 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.handler.sockjs.SockJSHandler;
+import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +75,7 @@ public class VaadinVerticle extends AbstractVerticle {
         Router router = Router.router(vertx);
         router.mountSubRouter(mountPoint, vertxVaadin.router());
 
-        httpServer.websocketHandler(vertxVaadin.webSocketHandler());
+        //httpServer.websocketHandler(vertxVaadin.webSocketHandler());
         httpServer.requestHandler(router::accept).listen(config().getInteger("httpPort", 8080));
 
 

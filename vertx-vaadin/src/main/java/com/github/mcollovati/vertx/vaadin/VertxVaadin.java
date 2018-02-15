@@ -1,46 +1,27 @@
 package com.github.mcollovati.vertx.vaadin;
 
+import java.nio.charset.Charset;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Properties;
+
 import com.github.mcollovati.vertx.web.sstore.SessionStoreAdapter;
-import com.vaadin.annotations.VaadinServletConfiguration;
 import com.vaadin.server.DefaultDeploymentConfiguration;
 import com.vaadin.server.ServiceException;
-import com.vaadin.server.VaadinServletRequest;
-import com.vaadin.server.VaadinSession;
-import com.vaadin.server.WrappedSession;
-import com.vaadin.server.communication.PushAtmosphereHandler;
-import com.vaadin.server.communication.VertxPushHandler;
-import com.vaadin.shared.communication.PushConstants;
-import com.vaadin.ui.UI;
-import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxException;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.ServerWebSocket;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CookieHandler;
 import io.vertx.ext.web.handler.SessionHandler;
 import io.vertx.ext.web.handler.StaticHandler;
+import io.vertx.ext.web.handler.sockjs.SockJSHandler;
+import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
 import io.vertx.ext.web.sstore.ClusteredSessionStore;
 import io.vertx.ext.web.sstore.LocalSessionStore;
 import io.vertx.ext.web.sstore.SessionStore;
-import org.atmosphere.cache.UUIDBroadcasterCache;
-import org.atmosphere.client.TrackMessageSizeInterceptor;
-import org.atmosphere.cpr.ApplicationConfig;
-import org.atmosphere.cpr.AtmosphereFramework;
-import org.atmosphere.cpr.AtmosphereInterceptor;
-import org.atmosphere.interceptor.HeartbeatInterceptor;
-import org.atmosphere.util.VoidAnnotationProcessor;
-import org.atmosphere.vertx.AtmosphereCoordinator;
-import org.atmosphere.vertx.ExposeAtmosphere;
-import org.atmosphere.vertx.VertxAtmosphere;
-import org.atmosphere.vertx.WebsocketSessionHandler;
-
-import java.lang.reflect.Method;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Properties;
 
 import static io.vertx.ext.web.handler.SessionHandler.DEFAULT_SESSION_TIMEOUT;
 
@@ -50,17 +31,8 @@ public class VertxVaadin {
     private final JsonObject config;
     private final Vertx vertx;
     private final Router router;
-    private final Handler<ServerWebSocket> webSocketHandler;
+    //private final Handler<ServerWebSocket> webSocketHandler;
 
-
-    // TODO: change JsonObject to VaadinOptions interface
-    public static VertxVaadin create(Vertx vertx, SessionStore sessionStore, JsonObject config) {
-        return new VertxVaadin(vertx, sessionStore, config);
-    }
-
-    public static VertxVaadin create(Vertx vertx, JsonObject config) {
-        return new VertxVaadin(vertx, config);
-    }
 
     private VertxVaadin(Vertx vertx, Optional<SessionStore> sessionStore, JsonObject config) {
         this.vertx = Objects.requireNonNull(vertx);
@@ -73,7 +45,7 @@ public class VertxVaadin {
         }
         SessionStore adaptedSessionStore = SessionStoreAdapter.adapt(service, sessionStore.orElseGet(this::createSessionStore));
         this.router = initRouter(adaptedSessionStore);
-        this.webSocketHandler = initWebSocketHandler(this.router, adaptedSessionStore);
+        //this.webSocketHandler = initWebSocketHandler(this.router, adaptedSessionStore);
     }
 
     protected VertxVaadin(Vertx vertx, SessionStore sessionStore, JsonObject config) {
@@ -84,15 +56,15 @@ public class VertxVaadin {
         this(vertx, Optional.empty(), config);
     }
 
-
     public Router router() {
         return router;
     }
 
+    /*
     public Handler<ServerWebSocket> webSocketHandler() {
         return webSocketHandler;
     }
-
+    */
 
     public final Vertx vertx() {
         return vertx;
@@ -125,20 +97,7 @@ public class VertxVaadin {
         return LocalSessionStore.create(vertx);
     }
 
-
     private Router initRouter(SessionStore sessionStore) {
-
-        // JsonObject vaadinConfig = config.get("vaadin");
-        // val vertxVaadin = VertxVaadin.build(vertx, vaadinConfig, sessionStore);
-        //
-        //
-        // val router = vertxVaadin.router();
-        // oppure
-        // val router = Router.router(vertx)
-        // router.mountSubRouter("/path", vertxVaadin.router())
-
-        // httpServer.requestHandler(router::accept).listen(config().getInteger("httpPort", 8080));
-        //  httpServer.websocketHandler(vertxVaadin.websocketHandler())
 
         String sessionCookieName = sessionCookieName();
         ////SessionStore sessionStoreAdapter = SessionStoreAdapter.adapt(vertx, sessionStore);
@@ -167,18 +126,28 @@ public class VertxVaadin {
         });
 
 
+        SockJSHandlerOptions options = new SockJSHandlerOptions().setHeartbeatInterval(2000);
+        SockJSHandler sockJSHandler = SockJSHandler.create(vertx, options);
+        sockJSHandler.socketHandler(sockJSSocket -> {
+            sockJSSocket.handler(event -> System.out.println("GOT REQ "
+                + event.toString(Charset.forName("UTF-8")))
+            );
+        });
+
+        vaadinRouter.route("/PUSH/*").handler(sockJSHandler);
+
+
         serviceInitialized(vaadinRouter);
         return vaadinRouter;
     }
-    
+
+    private String sessionCookieName() {
+        return config().getString("sessionCookieName", "vertx-web.session");
+    }
+
+    /*
     private Handler<ServerWebSocket> initWebSocketHandler(Router vaadinRouter, SessionStore sessionStore) {
 
-        /*
-        VaadinVerticleConfiguration vaadinVerticleConfiguration = getClass().getAnnotation(VaadinVerticleConfiguration.class);
-        String mountPoint = Optional.ofNullable(vaadinVerticleConfiguration)
-            .map(VaadinVerticleConfiguration::mountPoint)
-            .orElse(config().getString("mountPoint", "/"));
-        */
         String mountPoint = config().getString("mountPoint", "/");
         String sessionCookieName = sessionCookieName();
         WebsocketSessionHandler.WebsocketSessionHandlerBuilder websocketSessionHandlerBuilder =
@@ -192,9 +161,6 @@ public class VertxVaadin {
         return websocketSessionHandlerBuilder.next(atmosphereCoordinator::route).build();
     }
 
-    private String sessionCookieName() {
-        return config().getString("sessionCookieName", "vertx-web.session");
-    }
 
     private AtmosphereCoordinator initAtmosphere(Router router, VertxVaadinService service) {
         final String bufferSize = String.valueOf(PushConstants.WEBSOCKET_BUFFER_SIZE);
@@ -237,6 +203,7 @@ public class VertxVaadin {
         return atmosphereCoordinator;
     }
 
+    */
     private DefaultDeploymentConfiguration createDeploymentConfiguration() {
         return new DefaultDeploymentConfiguration(getClass(), initProperties());
     }
@@ -247,6 +214,15 @@ public class VertxVaadin {
         //readConfigurationAnnotation(initParameters);
         initParameters.putAll(config().getMap());
         return initParameters;
+    }
+
+    // TODO: change JsonObject to VaadinOptions interface
+    public static VertxVaadin create(Vertx vertx, SessionStore sessionStore, JsonObject config) {
+        return new VertxVaadin(vertx, sessionStore, config);
+    }
+
+    public static VertxVaadin create(Vertx vertx, JsonObject config) {
+        return new VertxVaadin(vertx, config);
     }
 
     /*
