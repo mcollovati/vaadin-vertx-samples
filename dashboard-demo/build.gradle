@@ -1,3 +1,8 @@
+plugins {
+  id "com.github.johnrengelman.shadow" version "2.0.2"
+}
+
+apply plugin: "com.github.johnrengelman.shadow"
 
 description = 'dashboard-demo'
 dependencies {
@@ -11,4 +16,18 @@ dependencies {
     compile group: 'com.google.guava', name: 'guava', version:'18.0'
     testCompile group: 'com.vaadin', name: 'vaadin-testbench', version:'4.0.3'
     compileOnly group: 'com.vaadin', name: 'vaadin-client-compiler', version:'7.6.8'
+
+    if (project.hasProperty('ha') && project.getProperty('ha') == 'true') {
+        compile 'io.vertx:vertx-hazelcast:${vertx.version}'
+    }
+}
+
+
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'Vaadin Vertx Experiment - Dashboard',
+                'Implementation-Version': version,
+                'Main-Class': 'io.vertx.core.Launcher',
+                'Main-Verticle': 'com.github.mcollovati.vertx.vaadin.VaadinVerticle'
+    }
 }
