@@ -1,0 +1,27 @@
+allprojects  {
+  apply plugin: 'maven'
+
+  group = 'com.github.mcollovati.vertx'
+version = '1.0-SNAPSHOT'
+}
+
+subprojects {
+  apply plugin: 'java'
+  sourceCompatibility = 1.8
+  targetCompatibility = 1.8
+
+  
+  repositories {
+    mavenLocal()
+    
+    maven { url "http://repo.maven.apache.org/maven2" }
+    maven { url "http://maven.vaadin.com/vaadin-addons" }
+    maven { url "https://oss.sonatype.org/content/repositories/vaadin-snapshots/" }
+    maven { url "https://oss.sonatype.org/content/repositories/vaadin/" }
+    maven { url "https://maven.vaadin.com/vaadin-prereleases" }
+  }
+
+  
+  
+  
+}

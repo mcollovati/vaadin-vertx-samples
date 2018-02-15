@@ -16,3 +16,17 @@ buildNumber.properties
 ### Vaadin ###
 **/VAADIN/gwt-unitCache/
 **/VAADIN/widgetsets/
+
+### Gradle ###
+.gradle
+*.bak
+sample/build/
+vertx-vaadin/build
+dashboard-demo/build
+
+### IDEA ###
+.idea
+*.iml
+.vertx
+
+
