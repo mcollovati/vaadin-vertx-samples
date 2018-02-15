@@ -1,0 +1,33 @@
+plugins {
+  id "com.github.johnrengelman.shadow" version "2.0.2"
+}
+
+apply plugin: "com.github.johnrengelman.shadow"
+
+description = 'dashboard-demo'
+dependencies {
+  compile project(':vertx-vaadin')
+    compile group: 'com.vaadin', name: 'vaadin-server', version:'7.6.8'
+    compile group: 'com.vaadin', name: 'vaadin-themes', version:'7.6.8'
+    compile group: 'com.vaadin.addon', name: 'vaadin-charts', version:'2.0.0'
+    compile group: 'org.vaadin.addons', name: 'googleanalyticstracker', version:'2.1.0'
+    compile group: 'org.peimari', name: 'maddon', version:'1.15'
+    compile group: 'org.slf4j', name: 'slf4j-jdk14', version:'1.6.6'
+    compile group: 'com.google.guava', name: 'guava', version:'18.0'
+    testCompile group: 'com.vaadin', name: 'vaadin-testbench', version:'4.0.3'
+    compileOnly group: 'com.vaadin', name: 'vaadin-client-compiler', version:'7.6.8'
+
+    if (project.hasProperty('ha') && project.getProperty('ha') == 'true') {
+        compile 'io.vertx:vertx-hazelcast:${vertx.version}'
+    }
+}
+
+
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'Vaadin Vertx Experiment - Dashboard',
+                'Implementation-Version': version,
+                'Main-Class': 'io.vertx.core.Launcher',
+                'Main-Verticle': 'com.github.mcollovati.vertx.vaadin.VaadinVerticle'
+    }
+}

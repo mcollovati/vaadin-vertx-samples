@@ -1,0 +1,5 @@
+rootProject.name = 'vaadin-vertx-samples'
+include ':sample','vertx-vaadin',':dashboard-demo'
+
+project(':sample').projectDir = "$rootDir/sample" as File
+project(':dashboard-demo').projectDir = "$rootDir/dashboard-demo" as File
