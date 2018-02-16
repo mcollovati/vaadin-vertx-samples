@@ -22,19 +22,23 @@
  */
 package com.github.mcollovati.vertx.vaadin;
 
+import javax.servlet.http.HttpSessionBindingEvent;
+import java.io.File;
+import java.io.InputStream;
+import java.util.List;
+import java.util.Optional;
+
 import com.github.mcollovati.vertx.web.sstore.SessionStoreAdapter;
 import com.vaadin.server.DefaultDeploymentConfiguration;
 import com.vaadin.server.RequestHandler;
 import com.vaadin.server.ServiceException;
 import com.vaadin.server.ServletPortletHelper;
-import com.vaadin.server.SessionExpiredException;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.server.VaadinService;
 import com.vaadin.server.VaadinServlet;
 import com.vaadin.server.VaadinServletService;
 import com.vaadin.server.VaadinSession;
 import com.vaadin.server.WrappedSession;
-import com.vaadin.server.communication.ServletBootstrapHandler;
 import com.vaadin.server.communication.ServletUIInitHandler;
 import com.vaadin.ui.UI;
 import com.vaadin.ui.themes.ValoTheme;
@@ -43,12 +47,6 @@ import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.servlet.http.HttpSessionBindingEvent;
-import java.io.File;
-import java.io.InputStream;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Created by marco on 16/07/16.
@@ -72,7 +70,7 @@ public class VertxVaadinService extends VaadinService {
     protected List<RequestHandler> createRequestHandlers()
         throws ServiceException {
         List<RequestHandler> handlers = super.createRequestHandlers();
-        handlers.add(0, new ServletBootstrapHandler());
+        handlers.add(0, new VertxBootstrapHandler());
         handlers.add(new ServletUIInitHandler());
         if (isAtmosphereAvailable()) {
             handlers.add((RequestHandler) (session, request, response) -> {
@@ -87,7 +85,7 @@ public class VertxVaadinService extends VaadinService {
         }
         return handlers;
     }
-    
+
     @Override
     public VaadinSession loadSession(WrappedSession wrappedSession) {
         return super.loadSession(wrappedSession);
@@ -96,42 +94,6 @@ public class VertxVaadinService extends VaadinService {
     @Override
     protected VaadinSession createVaadinSession(VaadinRequest request) throws ServiceException {
         return new VertxVaadinSession(this);
-    }
-
-    private static class VertxVaadinSession extends VaadinSession {
-        private static final Logger logger = LoggerFactory.getLogger(VertxVaadinSession.class);
-        private transient MessageConsumer<String> sessionExpiredConsumer;
-
-        public VertxVaadinSession(VertxVaadinService service) {
-            super(service);
-            createSessionExpireConsumer(service);
-        }
-
-        private void createSessionExpireConsumer(VertxVaadinService service) {
-            Optional.ofNullable(sessionExpiredConsumer).ifPresent(MessageConsumer::unregister);
-            this.sessionExpiredConsumer = SessionStoreAdapter.sessionExpiredHandler(service.getVertx(), this::onSessionExpired);
-        }
-
-        private void onSessionExpired(Message<String> message) {
-            Optional.ofNullable(this.getSession())
-                .filter(ws -> ws.getId().equals(message.body()))
-                .ifPresent(WrappedSession::invalidate);
-        }
-
-        @Override
-        public void valueUnbound(HttpSessionBindingEvent event) {
-            try {
-                super.valueUnbound(event);
-            } finally {
-                this.sessionExpiredConsumer.unregister();
-            }
-        }
-
-        @Override
-        public void refreshTransients(WrappedSession wrappedSession, VaadinService vaadinService) {
-            super.refreshTransients(wrappedSession, vaadinService);
-            createSessionExpireConsumer((VertxVaadinService) vaadinService);
-        }
     }
 
     @Override
@@ -182,7 +144,6 @@ public class VertxVaadinService extends VaadinService {
     public File getBaseDirectory() {
         return new File(".");
     }
-
 
     // From VaadinServletService
     @Override
@@ -245,12 +206,71 @@ public class VertxVaadinService extends VaadinService {
         return appId;
     }
 
-
     @Override
     public void destroy() {
         super.destroy();
     }
 
+    public static String getContextRootRelativePath(VaadinRequest request) {
+        VertxVaadinRequest servletRequest = (VertxVaadinRequest) request;
+        // Generate location from the request by finding how many "../" should
+        // be added to the servlet path before we get to the context root
+
+        String servletPath = servletRequest.getRoutingContext().mountPoint();
+        if (servletPath == null) {
+            // Not allowed by the spec but servers are servers...
+            servletPath = "";
+        }
+
+        String pathInfo = servletRequest.getPathInfo();
+        if (pathInfo != null && !pathInfo.isEmpty()) {
+            servletPath += pathInfo;
+        }
+
+        return getCancelingRelativePath(servletPath);
+    }
+
+    // Just to avoid direct calls to VaadinServletService
+    // from outside VertxVaadinService
+    public static String getCancelingRelativePath(String servletPath) {
+        return VaadinServletService.getCancelingRelativePath(servletPath);
+    }
+
+    private static class VertxVaadinSession extends VaadinSession {
+        private static final Logger logger = LoggerFactory.getLogger(VertxVaadinSession.class);
+        private transient MessageConsumer<String> sessionExpiredConsumer;
+
+        public VertxVaadinSession(VertxVaadinService service) {
+            super(service);
+            createSessionExpireConsumer(service);
+        }
+
+        private void createSessionExpireConsumer(VertxVaadinService service) {
+            Optional.ofNullable(sessionExpiredConsumer).ifPresent(MessageConsumer::unregister);
+            this.sessionExpiredConsumer = SessionStoreAdapter.sessionExpiredHandler(service.getVertx(), this::onSessionExpired);
+        }
+
+        private void onSessionExpired(Message<String> message) {
+            Optional.ofNullable(this.getSession())
+                .filter(ws -> ws.getId().equals(message.body()))
+                .ifPresent(WrappedSession::invalidate);
+        }
+
+        @Override
+        public void valueUnbound(HttpSessionBindingEvent event) {
+            try {
+                super.valueUnbound(event);
+            } finally {
+                this.sessionExpiredConsumer.unregister();
+            }
+        }
+
+        @Override
+        public void refreshTransients(WrappedSession wrappedSession, VaadinService vaadinService) {
+            super.refreshTransients(wrappedSession, vaadinService);
+            createSessionExpireConsumer((VertxVaadinService) vaadinService);
+        }
+    }
 
 
 }

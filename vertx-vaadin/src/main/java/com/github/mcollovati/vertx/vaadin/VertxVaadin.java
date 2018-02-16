@@ -1,10 +1,10 @@
 package com.github.mcollovati.vertx.vaadin;
 
-import java.nio.charset.Charset;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 
+import com.github.mcollovati.vertx.vaadin.communication.SockJSPushHandler;
 import com.github.mcollovati.vertx.web.sstore.SessionStoreAdapter;
 import com.vaadin.server.DefaultDeploymentConfiguration;
 import com.vaadin.server.ServiceException;
@@ -112,6 +112,9 @@ public class VertxVaadin {
         vaadinRouter.route().handler(BodyHandler.create());
         vaadinRouter.route().handler(sessionHandler);
 
+
+        initSockJS(vaadinRouter);
+
         vaadinRouter.route("/*").handler(routingContext -> {
             HttpServerRequest req = routingContext.request();
             VertxVaadinRequest request = new VertxVaadinRequest(service, routingContext);
@@ -126,20 +129,30 @@ public class VertxVaadin {
         });
 
 
-        SockJSHandlerOptions options = new SockJSHandlerOptions().setHeartbeatInterval(2000);
-        SockJSHandler sockJSHandler = SockJSHandler.create(vertx, options);
-        sockJSHandler.socketHandler(sockJSSocket -> {
-            sockJSSocket.handler(event -> System.out.println("GOT REQ "
-                + event.toString(Charset.forName("UTF-8")))
-            );
-        });
-
-        vaadinRouter.route("/PUSH/*").handler(sockJSHandler);
-
 
         serviceInitialized(vaadinRouter);
         return vaadinRouter;
     }
+
+    private void initSockJS(Router vaadinRouter) {
+        SockJSHandlerOptions options = new SockJSHandlerOptions().setHeartbeatInterval(2000);
+        SockJSHandler sockJSHandler = SockJSHandler.create(vertx, options);
+        /*
+        sockJSHandler.socketHandler(sockJSSocket -> {
+
+            System.out.printf("========================= CONNECTING");
+            sockJSSocket.handler(event -> System.out.println("GOT REQ "
+                + event.toString(Charset.forName("UTF-8")))
+            );
+        });
+        */
+
+        SockJSPushHandler pushHandler = new SockJSPushHandler(service, sockJSHandler);
+        vaadinRouter.route("/PUSH/*").handler(pushHandler);
+        //vaadinRouter.route("/PUSH/*").handler(sockJSHandler);
+    }
+
+
 
     private String sessionCookieName() {
         return config().getString("sessionCookieName", "vertx-web.session");

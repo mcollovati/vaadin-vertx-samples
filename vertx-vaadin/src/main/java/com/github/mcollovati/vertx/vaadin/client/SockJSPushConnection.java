@@ -1,4 +1,4 @@
-package com.github.mcollovati.vertx.client;
+package com.github.mcollovati.vertx.vaadin.client;
 
 import java.util.logging.Logger;
 
@@ -201,7 +201,7 @@ public class SockJSPushConnection implements PushConnection {
     protected native SockJSConfiguration createConfig()
     /*-{
         return {
-            transports: ['websocket', ]
+            transports: ['websocket']
         };
     }-*/;
 
@@ -269,16 +269,16 @@ public class SockJSPushConnection implements PushConnection {
 
         config.url = uri;
         config.onOpen = $entry(function(response) {
-            self.@com.github.mcollovati.vaadin.sockjs.client.SockJSPushConnection::onOpen(*)(response);
+            self.@com.github.mcollovati.vertx.vaadin.client.SockJSPushConnection::onOpen(*)(response);
         });
         config.onMessage = $entry(function(response) {
-            self.@com.github.mcollovati.vaadin.sockjs.client.SockJSPushConnection::onMessage(*)(response);
+            self.@com.github.mcollovati.vertx.vaadin.client.SockJSPushConnection::onMessage(*)(response);
         });
         config.onError = $entry(function(response) {
-            self.@com.github.mcollovati.vaadin.sockjs.client.SockJSPushConnection::onError(*)(response);
+            self.@com.github.mcollovati.vertx.vaadin.client.SockJSPushConnection::onError(*)(response);
         });
         config.onClose = $entry(function(response) {
-            self.@com.github.mcollovati.vaadin.sockjs.client.SockJSPushConnection::onClose(*)(response);
+            self.@com.github.mcollovati.vertx.vaadin.client.SockJSPushConnection::onClose(*)(response);
         });
 
 
@@ -344,7 +344,7 @@ public class SockJSPushConnection implements PushConnection {
 
     private static native void doDisconnect(SockJS sock)
     /*-{
-       sock.close(s);
+       sock.close();
     }-*/;
 
 
@@ -366,7 +366,7 @@ public class SockJSPushConnection implements PushConnection {
         
         protected final native String getResponseBody()
         /*-{
-           return this.transport;
+           return this.data;
          }-*/;
 
     }

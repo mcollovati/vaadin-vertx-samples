@@ -2,9 +2,11 @@ package com.github.mcollovati.vertx.vaadin.sample;
 
 import com.github.mcollovati.vertx.vaadin.VaadinVerticle;
 import com.github.mcollovati.vertx.vaadin.VertxVaadinService;
+import com.github.mcollovati.vertx.vaadin.communication.SockJSPushConnection;
 import com.vaadin.annotations.Push;
 import com.vaadin.annotations.Theme;
 import com.vaadin.annotations.Title;
+import com.vaadin.annotations.Widgetset;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.shared.communication.PushMode;
 import com.vaadin.shared.ui.ui.Transport;
@@ -24,12 +26,13 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @Theme("valo")
 @Title("Vert.x vaadin push sample")
+@Widgetset("com.github.mcollovati.vertx.vaadin.VaadinVertxWidgetset")
 @Push(value = PushMode.AUTOMATIC, transport = Transport.WEBSOCKET)
 public class PushTestUI extends UI {
 
     @Override
     protected void init(VaadinRequest request) {
-
+        setPushConnection(new SockJSPushConnection(this));
         String deploymentId = request.getService().getServiceName();
 
         Label time = new Label();

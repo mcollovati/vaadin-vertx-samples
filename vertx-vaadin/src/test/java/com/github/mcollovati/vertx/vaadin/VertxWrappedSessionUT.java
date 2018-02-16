@@ -1,8 +1,13 @@
 package com.github.mcollovati.vertx.vaadin;
 
+import javax.servlet.http.HttpSessionBindingEvent;
+import javax.servlet.http.HttpSessionBindingListener;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+
 import com.github.mcollovati.vertx.web.ExtendedSession;
 import org.assertj.core.api.ThrowableAssert;
-import org.atmosphere.vertx.VertxHttpSession;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -10,12 +15,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
-
-import javax.servlet.http.HttpSessionBindingEvent;
-import javax.servlet.http.HttpSessionBindingListener;
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 
 import static java.util.Collections.emptyMap;
 import static org.assertj.core.api.Assertions.assertThat;

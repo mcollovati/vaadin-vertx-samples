@@ -4,7 +4,7 @@
     <inherits name="com.vaadin.DefaultWidgetSet"/>
 
     <replace-with
-            class="com.github.mcollovati.vertx.client.SockJSPushConnection">
+            class="com.github.mcollovati.vertx.vaadin.client.SockJSPushConnection">
         <when-type-is class="com.vaadin.client.communication.PushConnection" />
     </replace-with>
 
