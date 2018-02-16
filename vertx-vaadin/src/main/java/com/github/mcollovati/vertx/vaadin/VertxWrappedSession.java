@@ -22,9 +22,15 @@
  */
 package com.github.mcollovati.vertx.vaadin;
 
+import javax.servlet.ServletContext;
+import javax.servlet.http.HttpSession;
 import javax.servlet.http.HttpSessionBindingEvent;
 import javax.servlet.http.HttpSessionBindingListener;
+import javax.servlet.http.HttpSessionContext;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -32,7 +38,7 @@ import com.github.mcollovati.vertx.web.ExtendedSession;
 import com.vaadin.server.WrappedSession;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
-import org.atmosphere.vertx.VertxHttpSession;
+import lombok.experimental.Delegate;
 
 import static java.util.stream.Collectors.toMap;
 
@@ -140,6 +146,60 @@ public class VertxWrappedSession implements WrappedSession {
 
     private HttpSessionBindingEvent createHttpSessionBindingEvent(String name, Object value) {
         return new HttpSessionBindingEvent(new VertxHttpSession(this), name, value);
+    }
+
+}
+
+class VertxHttpSession implements HttpSession {
+
+    @Delegate(excludes = Exclusions.class)
+    VertxWrappedSession delegate;
+
+    VertxHttpSession(ExtendedSession session) {
+        this(new VertxWrappedSession(Objects.requireNonNull(session)));
+    }
+
+    public VertxHttpSession(VertxWrappedSession session) {
+        this.delegate = Objects.requireNonNull(session);
+    }
+
+    @Override
+    public ServletContext getServletContext() {
+        return null;
+    }
+
+    @Override
+    public HttpSessionContext getSessionContext() {
+        throw new UnsupportedOperationException("Deprecated");
+    }
+
+    @Override
+    public Object getValue(String name) {
+        return delegate.getAttribute(name);
+    }
+
+    @Override
+    public Enumeration<String> getAttributeNames() {
+        return Collections.enumeration(delegate.getAttributeNames());
+    }
+
+    @Override
+    public String[] getValueNames() {
+        return delegate.getAttributeNames().toArray(new String[0]);
+    }
+
+    @Override
+    public void putValue(String name, Object value) {
+        delegate.setAttribute(name, value);
+    }
+
+    @Override
+    public void removeValue(String name) {
+        delegate.removeAttribute(name);
+    }
+
+    private interface Exclusions {
+        Set<String> getAttributeNames();
     }
 
 }

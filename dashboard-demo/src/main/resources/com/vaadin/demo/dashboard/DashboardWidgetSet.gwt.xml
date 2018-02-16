@@ -31,4 +31,6 @@
     <inherits name="com.vaadin.addon.timeline.gwt.TimelineWidgetSet" />
 
     
+
+    <inherits name="com.github.mcollovati.vertx.vaadin.VaadinVertxWidgetset" />
 </module>

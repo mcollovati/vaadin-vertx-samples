@@ -1,12 +1,19 @@
 package com.github.mcollovati.vertx.vaadin.sample;
 
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpSessionBindingEvent;
+import javax.servlet.http.HttpSessionBindingListener;
+import java.io.Serializable;
+import java.time.Instant;
+
 import com.github.mcollovati.vertx.vaadin.VertxVaadinRequest;
+import com.github.mcollovati.vertx.vaadin.communication.SockJSPushConnection;
 import com.vaadin.annotations.Push;
 import com.vaadin.annotations.Theme;
 import com.vaadin.annotations.Title;
+import com.vaadin.annotations.Widgetset;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.server.VaadinService;
-import com.vaadin.server.VaadinSession;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.Notification;
 import com.vaadin.ui.UI;
@@ -15,19 +22,13 @@ import org.vaadin.viritin.label.Header;
 import org.vaadin.viritin.label.MLabel;
 import org.vaadin.viritin.layouts.MVerticalLayout;
 
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpSessionBindingEvent;
-import javax.servlet.http.HttpSessionBindingListener;
-import java.io.Serializable;
-import java.time.Instant;
-
 /**
  * Created by marco on 21/07/16.
  */
 @Theme(ValoTheme.THEME_NAME)
 @Title("Vert.x vaadin sample")
-@Push
 public class SimpleUI extends UI {
+
     @Override
     protected void init(VaadinRequest request) {
 
