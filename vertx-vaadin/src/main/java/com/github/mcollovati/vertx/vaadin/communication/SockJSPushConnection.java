@@ -1,5 +1,7 @@
 package com.github.mcollovati.vertx.vaadin.communication;
 
+import java.io.Reader;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.concurrent.Future;
@@ -157,8 +159,20 @@ public class SockJSPushConnection implements PushConnection {
         socket.write(Buffer.buffer(message, "UTF-8"));
     }
 
+
+    protected Reader receiveMessage(Buffer data) {
+
+        // SockJS will always receive the whole message
+        return new StringReader(data.toString());
+    }
+
+
     UI getUI() {
         return ui;
+    }
+
+    SockJSSocket getSocket() {
+        return socket;
     }
 
     private static Logger getLogger() {

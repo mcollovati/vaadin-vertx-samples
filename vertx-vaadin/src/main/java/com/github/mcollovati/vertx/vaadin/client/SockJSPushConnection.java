@@ -357,13 +357,15 @@ public class SockJSPushConnection implements PushConnection {
     }
 
     public static class SockJSConfiguration extends JavaScriptObject {
-        protected SockJSConfiguration() {}
+        protected SockJSConfiguration() {
+        }
     }
 
     public static class TransportMessageEvent extends JavaScriptObject {
 
-        protected TransportMessageEvent() {}
-        
+        protected TransportMessageEvent() {
+        }
+
         protected final native String getResponseBody()
         /*-{
            return this.data;
@@ -373,8 +375,9 @@ public class SockJSPushConnection implements PushConnection {
 
     public static class SockJS extends JavaScriptObject {
 
-        protected SockJS() {}
-        
+        protected SockJS() {
+        }
+
         protected final native String getTransport()
         /*-{
            return this.transport;
@@ -386,6 +389,5 @@ public class SockJSPushConnection implements PushConnection {
           }-*/;
 
     }
-
 
 }
