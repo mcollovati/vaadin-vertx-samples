@@ -27,6 +27,8 @@ import org.vaadin.viritin.layouts.MVerticalLayout;
  */
 @Theme(ValoTheme.THEME_NAME)
 @Title("Vert.x vaadin sample")
+//@Widgetset("com.github.mcollovati.vertx.vaadin.VaadinVertxWidgetset")
+@Widgetset("com.vaadin.DefaultWidgetSet")
 public class SimpleUI extends UI {
 
     @Override
