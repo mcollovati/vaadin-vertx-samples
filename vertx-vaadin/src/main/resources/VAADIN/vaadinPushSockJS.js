@@ -6157,7 +6157,7 @@ window.vaadinPush = window.vaadinPush || {};
   var socks = [];
   this.SockJS = {
     connect: function(config) {
-        var sock = SockJSImpl(config.url);
+        var sock = SockJSImpl(config.url, null, config);
 
         sock.onopen = config.onOpen;
         sock.onmessage = config.onMessage;
