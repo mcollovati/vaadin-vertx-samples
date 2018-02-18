@@ -1,10 +1,13 @@
 package com.github.mcollovati.vertx.vaadin.client;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.user.client.Command;
+import com.google.gwt.user.client.Window;
 import com.vaadin.client.ApplicationConfiguration;
 import com.vaadin.client.ApplicationConnection;
 import com.vaadin.client.ResourceLoader;
@@ -55,7 +58,6 @@ public class SockJSPushConnection implements PushConnection {
             });
 
         config = createConfig();
-        /*
         String debugParameter = Window.Location.getParameter("debug");
         if ("push".equals(debugParameter)) {
             config.setStringValue("logLevel", "debug");
@@ -69,7 +71,7 @@ public class SockJSPushConnection implements PushConnection {
                 config.setStringValue(param, value);
             }
         }
-        */
+        config.mapTransports();
         if (pushConfiguration.pushUrl != null) {
             url = pushConfiguration.pushUrl;
         } else {
@@ -198,10 +200,22 @@ public class SockJSPushConnection implements PushConnection {
     }
 
 
+    /**
+     * Available options
+     * - transport:
+     * - websocket: options[maxLength, protocols]
+     * - xhr-streaming: no-options
+     * - xhr-polling: no-options
+     * - transportOptions
+     * - sessionId
+     * - server
+     */
     protected native SockJSConfiguration createConfig()
     /*-{
         return {
-            transports: ['websocket']
+            transport: 'websocket',
+            fallbackTransport: 'xhr-polling',
+            transports: ['websocket', 'xhr-polling', 'xhr-streaming']
         };
     }-*/;
 
@@ -356,37 +370,110 @@ public class SockJSPushConnection implements PushConnection {
         CONNECTING, OPEN, CLOSING, CLOSED
     }
 
-    public static class SockJSConfiguration extends JavaScriptObject {
-        protected SockJSConfiguration() {
+    public abstract static class AbstractJSO extends JavaScriptObject {
+        protected AbstractJSO() {
         }
+
+        protected final native String getStringValue(String key)
+        /*-{
+           return this[key];
+         }-*/;
+
+        protected final native void setStringValue(String key, String value)
+        /*-{
+            this[key] = value;
+        }-*/;
+
+        protected final native int getIntValue(String key)
+        /*-{
+           return this[key];
+         }-*/;
+
+        protected final native void setIntValue(String key, int value)
+        /*-{
+            this[key] = value;
+        }-*/;
+
+        protected final native boolean getBooleanValue(String key)
+        /*-{
+           return this[key];
+         }-*/;
+
+        protected final native void setBooleanValue(String key, boolean value)
+        /*-{
+            this[key] = value;
+        }-*/;
+
     }
 
-    public static class TransportMessageEvent extends JavaScriptObject {
+    public static class SockJSConfiguration extends AbstractJSO {
+
+        // Vaadin to SockJS transport map
+        private static final Map<String, String> TRANSPORT_MAPPER = new HashMap<>();
+
+        static {
+            TRANSPORT_MAPPER.put("websocket", "websocket");
+            TRANSPORT_MAPPER.put("websocket-xhr", "websocket");
+            TRANSPORT_MAPPER.put("long-polling", "xhr-polling");
+            TRANSPORT_MAPPER.put("streaming", "xhr-streaming");
+        }
+
+        protected SockJSConfiguration() {
+        }
+
+        public final String getTransport() {
+            return getStringValue("transport");
+        }
+
+        public final void setTransport(String transport) {
+            setStringValue("transport", TRANSPORT_MAPPER.getOrDefault(transport, transport));
+        }
+
+        public final String getFallbackTransport() {
+            return getStringValue("fallbackTransport");
+        }
+
+        public final void setFallbackTransport(String fallbackTransport) {
+            setStringValue("fallbackTransport", TRANSPORT_MAPPER.getOrDefault(fallbackTransport, fallbackTransport));
+        }
+
+        public final void mapTransports() {
+            setTransport(getTransport());
+            setFallbackTransport(getFallbackTransport());
+            setTransports();
+        }
+
+        private native void setTransports()
+        /*-{
+            this.transports = [this.transport, this.fallbackTransport];
+        }-*/;
+
+
+    }
+
+    public static class TransportMessageEvent extends AbstractJSO {
 
         protected TransportMessageEvent() {
         }
 
-        protected final native String getResponseBody()
-        /*-{
-           return this.data;
-         }-*/;
+        protected final String getResponseBody() {
+            return getStringValue("data");
+        }
 
     }
 
-    public static class SockJS extends JavaScriptObject {
+    public static class SockJS extends AbstractJSO {
 
         protected SockJS() {
         }
 
-        protected final native String getTransport()
-        /*-{
-           return this.transport;
-         }-*/;
+        protected final String getTransport() {
+            return getStringValue("transport");
+        }
 
-        protected final native int readyState()
-         /*-{
-            return this.readyState;
-          }-*/;
+        protected final int readyState() {
+            return getIntValue("readyState");
+        }
 
     }
 

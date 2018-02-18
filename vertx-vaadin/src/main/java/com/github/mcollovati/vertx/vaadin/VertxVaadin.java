@@ -31,8 +31,6 @@ public class VertxVaadin {
     private final JsonObject config;
     private final Vertx vertx;
     private final Router router;
-    //private final Handler<ServerWebSocket> webSocketHandler;
-
 
     private VertxVaadin(Vertx vertx, Optional<SessionStore> sessionStore, JsonObject config) {
         this.vertx = Objects.requireNonNull(vertx);
@@ -45,7 +43,6 @@ public class VertxVaadin {
         }
         SessionStore adaptedSessionStore = SessionStoreAdapter.adapt(service, sessionStore.orElseGet(this::createSessionStore));
         this.router = initRouter(adaptedSessionStore);
-        //this.webSocketHandler = initWebSocketHandler(this.router, adaptedSessionStore);
     }
 
     protected VertxVaadin(Vertx vertx, SessionStore sessionStore, JsonObject config) {
@@ -60,11 +57,6 @@ public class VertxVaadin {
         return router;
     }
 
-    /*
-    public Handler<ServerWebSocket> webSocketHandler() {
-        return webSocketHandler;
-    }
-    */
 
     public final Vertx vertx() {
         return vertx;
@@ -100,7 +92,6 @@ public class VertxVaadin {
     private Router initRouter(SessionStore sessionStore) {
 
         String sessionCookieName = sessionCookieName();
-        ////SessionStore sessionStoreAdapter = SessionStoreAdapter.adapt(vertx, sessionStore);
         SessionHandler sessionHandler = SessionHandler.create(sessionStore)
             .setSessionTimeout(config().getLong("sessionTimeout", DEFAULT_SESSION_TIMEOUT))
             .setSessionCookieName(sessionCookieName)
@@ -112,11 +103,9 @@ public class VertxVaadin {
         vaadinRouter.route().handler(BodyHandler.create());
         vaadinRouter.route().handler(sessionHandler);
 
-
         initSockJS(vaadinRouter);
 
         vaadinRouter.route("/*").handler(routingContext -> {
-            HttpServerRequest req = routingContext.request();
             VertxVaadinRequest request = new VertxVaadinRequest(service, routingContext);
             VertxVaadinResponse response = new VertxVaadinResponse(service, routingContext);
 
@@ -129,94 +118,25 @@ public class VertxVaadin {
         });
 
 
-
         serviceInitialized(vaadinRouter);
         return vaadinRouter;
     }
 
     private void initSockJS(Router vaadinRouter) {
-        SockJSHandlerOptions options = new SockJSHandlerOptions().setHeartbeatInterval(2000);
+
+        SockJSHandlerOptions options = new SockJSHandlerOptions()
+            .setSessionTimeout(config().getLong("sessionTimeout", DEFAULT_SESSION_TIMEOUT))
+            .setHeartbeatInterval(service.getDeploymentConfiguration().getHeartbeatInterval() * 1000);
         SockJSHandler sockJSHandler = SockJSHandler.create(vertx, options);
-        /*
-        sockJSHandler.socketHandler(sockJSSocket -> {
-
-            System.out.printf("========================= CONNECTING");
-            sockJSSocket.handler(event -> System.out.println("GOT REQ "
-                + event.toString(Charset.forName("UTF-8")))
-            );
-        });
-        */
-
         SockJSPushHandler pushHandler = new SockJSPushHandler(service, sockJSHandler);
         vaadinRouter.route("/PUSH/*").handler(pushHandler);
-        //vaadinRouter.route("/PUSH/*").handler(sockJSHandler);
     }
-
 
 
     private String sessionCookieName() {
         return config().getString("sessionCookieName", "vertx-web.session");
     }
 
-    /*
-    private Handler<ServerWebSocket> initWebSocketHandler(Router vaadinRouter, SessionStore sessionStore) {
-
-        String mountPoint = config().getString("mountPoint", "/");
-        String sessionCookieName = sessionCookieName();
-        WebsocketSessionHandler.WebsocketSessionHandlerBuilder websocketSessionHandlerBuilder =
-            WebsocketSessionHandler.builder().mountPoint(mountPoint)
-                .cookieName(sessionCookieName).sessionStore(sessionStore);
-
-        AtmosphereCoordinator atmosphereCoordinator = initAtmosphere(vaadinRouter, service);
-
-        router.get("/PUSH").handler(atmosphereCoordinator::route);
-        router.post("/PUSH").handler(atmosphereCoordinator::route);
-        return websocketSessionHandlerBuilder.next(atmosphereCoordinator::route).build();
-    }
-
-
-    private AtmosphereCoordinator initAtmosphere(Router router, VertxVaadinService service) {
-        final String bufferSize = String.valueOf(PushConstants.WEBSOCKET_BUFFER_SIZE);
-
-        AtmosphereInterceptor trackMessageSize = new TrackMessageSizeInterceptor();
-
-        VertxAtmosphere.Builder pushBuilder = new VertxAtmosphere.Builder()
-            .initParam(ApplicationConfig.BROADCASTER_CACHE, UUIDBroadcasterCache.class.getName())
-            .initParam(ApplicationConfig.ANNOTATION_PROCESSOR, VoidAnnotationProcessor.class.getName())
-            .initParam(ApplicationConfig.PROPERTY_SESSION_SUPPORT, "true")
-            .initParam(ApplicationConfig.MESSAGE_DELIMITER, String.valueOf(PushConstants.MESSAGE_DELIMITER))
-            .initParam(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, "false")
-            // Disable heartbeat (it does not emit correct events client side)
-            // https://github.com/Atmosphere/atmosphere-javascript/issues/141
-            .initParam(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTORS, HeartbeatInterceptor.class.getName())
-            .initParam(ApplicationConfig.WEBSOCKET_BUFFER_SIZE, bufferSize)
-            .initParam(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE, bufferSize)
-            .initParam(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE, bufferSize)
-            .initParam(ApplicationConfig.PROPERTY_ALLOW_SESSION_TIMEOUT_REMOVAL, "false")
-            // Disable Atmosphere's message about commercial support
-            .initParam("org.atmosphere.cpr.showSupportMessage", "false")
-            .interceptor(trackMessageSize);
-
-        AtmosphereCoordinator atmosphereCoordinator = ExposeAtmosphere.newCoordinator(pushBuilder);
-        AtmosphereFramework framework = atmosphereCoordinator.framework();
-        trackMessageSize.configure(framework.getAtmosphereConfig());
-
-        VertxPushHandler vertxPushHandler = new VertxPushHandler(service);
-        vertxPushHandler.setLongPollingSuspendTimeout(framework.getAtmosphereConfig()
-            .getInitParameter(com.vaadin.server.Constants.SERVLET_PARAMETER_PUSH_SUSPEND_TIMEOUT_LONGPOLLING, -1));
-
-        PushAtmosphereHandler pushAtmosphereHandler = new PushAtmosphereHandler();
-        pushAtmosphereHandler.setPushHandler(vertxPushHandler);
-        framework.addAtmosphereHandler("/*", pushAtmosphereHandler);
-
-        atmosphereCoordinator.ready();
-
-        service.addServiceDestroyListener(event -> atmosphereCoordinator.shutdown());
-
-        return atmosphereCoordinator;
-    }
-
-    */
     private DefaultDeploymentConfiguration createDeploymentConfiguration() {
         return new DefaultDeploymentConfiguration(getClass(), initProperties());
     }
