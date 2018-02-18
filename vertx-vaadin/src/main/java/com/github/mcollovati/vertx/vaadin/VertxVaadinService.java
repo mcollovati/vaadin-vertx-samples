@@ -23,10 +23,14 @@
 package com.github.mcollovati.vertx.vaadin;
 
 import javax.servlet.http.HttpSessionBindingEvent;
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Level;
 
 import com.github.mcollovati.vertx.web.sstore.SessionStoreAdapter;
 import com.vaadin.server.DefaultDeploymentConfiguration;
@@ -43,8 +47,10 @@ import com.vaadin.server.communication.ServletUIInitHandler;
 import com.vaadin.ui.UI;
 import com.vaadin.ui.themes.ValoTheme;
 import io.vertx.core.Vertx;
+import io.vertx.core.VertxException;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
+import io.vertx.core.file.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -183,8 +189,24 @@ public class VertxVaadinService extends VaadinService {
 
     @Override
     public InputStream getThemeResourceAsStream(UI uI, String themeName, String resource) {
+        String filename = VaadinServlet.THEME_DIR_PATH + '/' + themeName
+            + "/" + resource;
+
+        String normalized = Paths.get(filename).normalize().toString();
+        if (!normalized.startsWith("VAADIN/")
+            || normalized.contains("/../")) {
+            throw new VertxException(String.format(
+                "Requested resource [%s] not accessible in the VAADIN directory or access to it is forbidden.",
+                filename));
+        }
+        FileSystem fileSystem = getVertx().fileSystem();
+        if (fileSystem.existsBlocking(filename)) {
+            
+            return new ByteArrayInputStream(fileSystem.readFileBlocking(filename).getBytes());
+        }
         return null;
     }
+
 
     // Adapted from VaadinServletService
     @Override

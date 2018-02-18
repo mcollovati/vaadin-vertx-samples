@@ -200,6 +200,19 @@
     </dependencies>
 
     <build>
+        <!-- This is needed for the sources required by the client-side compiler to be
+            included in the produced JARs -->
+        <resources>
+            <resource>
+                <directory>${project.basedir}/src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/src/main/java</directory>
+                <includes>
+                    <include>**/client/**</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

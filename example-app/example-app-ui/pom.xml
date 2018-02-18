@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>sockjs</artifactId>
+        <groupId>com.github.mcollovati.vaadin</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>example-app-ui</artifactId>
+    <name>example-app-ui</name>
+    <packaging>jar</packaging>
+
+    <dependencies>
+        <!-- Versions for these are configured in the parent POM -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish</groupId>
+            <artifactId>javax.el</artifactId>
+            <version>3.0.0</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.vaadin</groupId>
+            <artifactId>vaadin-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.mcollovati.vertx</groupId>
+            <artifactId>vertx-vaadin</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.vaadin</groupId>
+            <artifactId>vaadin-themes</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>example-app-backend</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Custom components -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>example-app-widgetset</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Bean validation implementation -->
+        <dependency>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-validator</artifactId>
+            <version>5.1.0.CR1</version>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.11</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.vaadin</groupId>
+                <artifactId>vaadin-maven-plugin</artifactId>
+                <configuration>
+                    <extraJvmArgs>-Xmx512M -Xss1024k</extraJvmArgs>
+                    <webappDirectory>${basedir}/target/classes/VAADIN/widgetsets</webappDirectory>
+                    <draftCompile>false</draftCompile>
+                    <compileReport>false</compileReport>
+                    <style>OBF</style>
+                    <strict>true</strict>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>update-theme</goal>
+                            <!-- Comment out compile-theme goal to use on-the-fly theme compilation -->
+                            <goal>compile-theme</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- TODO remove? -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>2.16</version>
+                <executions>
+                    <execution>
+                        <id>default</id>
+                        <configuration>
+                            <skip>true</skip>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>integration-test</id>
+                        <goals>
+                            <goal>integration-test</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>verify</id>
+                        <goals>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>2.3</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <manifestEntries>
+                                        <Main-Class>io.vertx.core.Launcher</Main-Class>
+                                        <Main-Verticle>com.github.mcollovati.vaadin.exampleapp.MyUI$ExampleUIVerticle
+                                        </Main-Verticle>
+                                    </manifestEntries>
+                                </transformer>
+                            </transformers>
+                            <artifactSet/>
+                            <outputFile>${project.build.directory}/${project.artifactId}-${project.version}-fat.jar
+                            </outputFile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>vaadin-push</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.vaadin</groupId>
+                    <artifactId>vaadin-push</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+
+</project>
