@@ -99,6 +99,11 @@ public class VertxVaadin {
 
         Router vaadinRouter = Router.router(vertx);
         vaadinRouter.route().handler(CookieHandler.create());
+
+        // Forward vaadinPush javascript to sockjs implementation
+        vaadinRouter.routeWithRegex("/VAADIN/vaadinPush(\\.debug)?\\.js")
+            .handler(ctx -> ctx.reroute("/VAADIN/vaadinPushSockJS.js"));
+
         vaadinRouter.route("/VAADIN/*").handler(StaticHandler.create("VAADIN", getClass().getClassLoader()));
         vaadinRouter.route().handler(BodyHandler.create());
         vaadinRouter.route().handler(sessionHandler);
