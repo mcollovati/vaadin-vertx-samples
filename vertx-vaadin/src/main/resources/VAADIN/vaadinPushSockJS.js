@@ -6154,16 +6154,92 @@ window.vaadinPush = window.vaadinPush || {};
     window.SockJS = null;
   }
 
-  var socks = [];
+  var SockJSWrapper = function(url, options) {
+    var self = this;
+
+    options = options || {};
+    self.reconnectTimerID = null;
+    self.reconnectEnabled = false;
+    self.reconnectAttempts = 0;
+    self.maxReconnectAttempts = options.maxReconnectAttempts || Infinity;
+    self.reconnectInterval = options.reconnectInterval || 5000;
+
+
+    var setupSockJSConnection = function() {
+        self.sock = SockJSImpl(url, null, options);
+        self.sock.onopen = function() {
+            self.onopen && self.onopen();
+            if (self.reconnectTimerID) {
+              self.reconnectAttempts = 0;
+              // fire separate event for reconnects
+              // consistent behavior with adding handlers onopen
+              self.onreconnect && self.onreconnect();
+            }
+        };
+
+        self.sock.onclose = function (e) {
+            if (self.reconnectEnabled) {}
+              if (self.reconnectAttempts < self.maxReconnectAttempts) {
+                self.sock = null;
+                // set id so users can cancel
+                self.reconnectTimerID = setTimeout(setupSockJSConnection, self.reconnectInterval);
+                ++self.reconnectAttempts;
+              } else {
+                // notify error
+                var e = new Event('reconnectionError');
+                self.onerror && self.onerror(e);
+              }
+            self.onclose && self.onclose(e);
+        };
+        self.sock.onmessage = function(e) {
+            self.onmessage && self.onmessage(e);
+        };
+        self.sock.onerror = function(e) {
+            self.onerror && self.onerror(e);
+        }
+    };
+
+    setupSockJSConnection();
+
+  };
+
+    SockJSWrapper.prototype.close = function () {
+        this.enableReconnect(false);
+        this.sock.close();
+    };
+    SockJSWrapper.prototype.send = function(message) {
+        if (this.sock) {
+            this.sock.send(message);
+        } else {
+            throw new Error('SockJS not initialized');
+        }
+    };
+    SockJSWrapper.prototype.enableReconnect = function (enable) {
+        var self = this;
+
+        self.reconnectEnabled = enable;
+        if (!enable && self.reconnectTimerID) {
+          clearTimeout(self.reconnectTimerID);
+          self.reconnectTimerID = null;
+          self.reconnectAttempts = 0;
+        }
+    };
+    SockJSWrapper.prototype.getTransport = function () {
+        return this.sock ? this.sock.transport : null;
+    }
+    SockJSWrapper.prototype.getReadyState = function () {
+        return this.sock ? this.sock.readyState : SockJSImpl.CONNECTING;
+    };
+
   this.SockJS = {
     connect: function(config) {
-        var sock = SockJSImpl(config.url, null, config);
-
+        var sock = new SockJSWrapper(config.url, config);
+        sock.enableReconnect(parseInt(config.reconnectInterval) > 0);
         sock.onopen = config.onOpen;
         sock.onmessage = config.onMessage;
         sock.onclose = config.onClose;
         sock.onerror = config.onError
-        socks.push({url: config.url, sock: sock});
+        sock.onreconnect = config.onReconnect;
         return sock;
     },
   }

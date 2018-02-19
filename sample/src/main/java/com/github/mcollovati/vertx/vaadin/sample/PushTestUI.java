@@ -20,7 +20,6 @@ import com.vaadin.shared.communication.PushMode;
 import com.vaadin.shared.ui.ui.Transport;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.ComboBox;
-import com.vaadin.ui.HorizontalLayout;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
@@ -34,6 +33,8 @@ import io.vertx.core.Vertx;
 @Widgetset("com.github.mcollovati.vertx.vaadin.VaadinVertxWidgetset")
 @Push(value = PushMode.AUTOMATIC, transport = Transport.WEBSOCKET)
 public class PushTestUI extends UI {
+
+    private AtomicLong timerId;
 
     @Override
     protected void init(VaadinRequest request) {
@@ -57,7 +58,7 @@ public class PushTestUI extends UI {
 
 
         Label time = new Label();
-        AtomicLong timerId = new AtomicLong(-1);
+        timerId = new AtomicLong(-1);
         VerticalLayout verticalLayout = new VerticalLayout();
 
         // TODO: find correct way to disable and then reenable PUSH to change transport
@@ -75,7 +76,7 @@ public class PushTestUI extends UI {
                         access(() -> showNow(time, getLocale()));
                     }));
             } else {
-                getVertx().cancelTimer(timerId.getAndSet(-1));
+                cancelTimer();
                 access(() -> {
                     time.setValue("STOP");
                     e.getButton().setCaption("Restart PUSH clock");
@@ -88,6 +89,18 @@ public class PushTestUI extends UI {
 
     }
 
+    @Override
+    public void detach() {
+        cancelTimer();
+        super.detach();
+    }
+
+    private void cancelTimer() {
+        long currentTimer = timerId.getAndSet(-1);
+        if (currentTimer > 0) {
+            getVertx().cancelTimer(currentTimer);
+        }
+    }
 
     private HasValue.ValueChangeListener<Transport> transportValueChangeListener(Consumer<Transport> setter) {
         return event -> {
