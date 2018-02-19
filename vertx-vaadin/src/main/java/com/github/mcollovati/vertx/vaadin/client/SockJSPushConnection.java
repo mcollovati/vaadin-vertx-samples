@@ -123,30 +123,6 @@ public class SockJSPushConnection implements PushConnection {
         }
     }
 
-    @Override
-    public void disconnect(Command command) {
-        assert command != null;
-
-        switch (state) {
-            case CONNECTING:
-                // Make the connection callback initiate the disconnection again
-                state = State.CLOSING;
-                pendingDisconnectCommand = command;
-                break;
-            case OPEN:
-                // Normal disconnect
-                getLogger().info("Closing push connection");
-                doDisconnect(socket);
-                state = State.CLOSED;
-                command.execute();
-                break;
-            case CLOSING:
-            case CLOSED:
-                throw new IllegalStateException(
-                    "Can not disconnect more than once");
-        }
-
-    }
 
     @Override
     public String getTransportType() {
@@ -177,9 +153,6 @@ public class SockJSPushConnection implements PushConnection {
 
     }
 
-    protected SockJSConfiguration getConfig() {
-        return config;
-    }
 
     private void connect() {
         String baseUrl = connection.translateVaadinUri(url);
@@ -199,6 +172,34 @@ public class SockJSPushConnection implements PushConnection {
         socket = doConnect(uri, getConfig());
     }
 
+    @Override
+    public void disconnect(Command command) {
+        assert command != null;
+
+        switch (state) {
+            case CONNECTING:
+                // Make the connection callback initiate the disconnection again
+                state = State.CLOSING;
+                pendingDisconnectCommand = command;
+                break;
+            case OPEN:
+                // Normal disconnect
+                getLogger().info("Closing push connection");
+                doDisconnect(socket);
+                state = State.CLOSED;
+                command.execute();
+                break;
+            case CLOSING:
+            case CLOSED:
+                throw new IllegalStateException(
+                    "Can not disconnect more than once");
+        }
+
+    }
+
+    protected SockJSConfiguration getConfig() {
+        return config;
+    }
 
     /**
      * Available options
@@ -215,7 +216,9 @@ public class SockJSPushConnection implements PushConnection {
         return {
             transport: 'websocket',
             fallbackTransport: 'xhr-polling',
-            transports: ['websocket', 'xhr-polling', 'xhr-streaming']
+            transports: ['websocket', 'xhr-polling', 'xhr-streaming'],
+            reconnectInterval: 5000,
+            maxReconnectAttempts: 10
         };
     }-*/;
 
@@ -229,12 +232,18 @@ public class SockJSPushConnection implements PushConnection {
     protected void onError(JavaScriptObject response) {
         state = State.CLOSED;
         getConnectionStateHandler().pushError(this, response);
-        // TODO - reconnect
     }
 
     protected void onClose(JavaScriptObject response) {
         state = State.CONNECTING;
         getConnectionStateHandler().pushClosed(this, response);
+    }
+
+    protected void onReconnect(JavaScriptObject response) {
+        if (state == State.OPEN) {
+            state = State.CONNECTING;
+        }
+        getConnectionStateHandler().pushReconnectPending(this);
     }
 
     protected void onMessage(TransportMessageEvent response) {
@@ -243,7 +252,6 @@ public class SockJSPushConnection implements PushConnection {
         if (json == null) {
             // Invalid string (not wrapped as expected)
             getConnectionStateHandler().pushInvalidContent(this, message);
-            return;
         } else {
             getLogger().info("Received push (" + getTransportType()
                 + ") message: " + message);
@@ -293,6 +301,9 @@ public class SockJSPushConnection implements PushConnection {
         });
         config.onClose = $entry(function(response) {
             self.@com.github.mcollovati.vertx.vaadin.client.SockJSPushConnection::onClose(*)(response);
+        });
+        config.onReconnect = $entry(function(response) {
+            self.@com.github.mcollovati.vertx.vaadin.client.SockJSPushConnection::onReconnect(*)(response);
         });
 
 
@@ -467,13 +478,15 @@ public class SockJSPushConnection implements PushConnection {
         protected SockJS() {
         }
 
-        protected final String getTransport() {
-            return getStringValue("transport");
-        }
+        protected native final String getTransport()
+        /*-{
+            return this.getTransport();
+        }-*/;
 
-        protected final int readyState() {
-            return getIntValue("readyState");
-        }
+        protected native final int readyState()
+        /*-{
+            return this.getReadyState();
+        }-*/;
 
     }
 
