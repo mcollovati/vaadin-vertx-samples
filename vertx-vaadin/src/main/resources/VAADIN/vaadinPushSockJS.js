@@ -6161,6 +6161,7 @@ window.vaadinPush = window.vaadinPush || {};
     self.reconnectTimerID = null;
     self.reconnectEnabled = false;
     self.reconnectAttempts = 0;
+    self.firstMessage = true;
     self.maxReconnectAttempts = options.maxReconnectAttempts || Infinity;
     self.reconnectInterval = options.reconnectInterval || 5000;
 
@@ -6168,7 +6169,7 @@ window.vaadinPush = window.vaadinPush || {};
     var setupSockJSConnection = function() {
         self.sock = SockJSImpl(url, null, options);
         self.sock.onopen = function() {
-            self.onopen && self.onopen();
+            self.firstMessage = true;
             if (self.reconnectTimerID) {
               self.reconnectAttempts = 0;
               // fire separate event for reconnects
@@ -6192,7 +6193,13 @@ window.vaadinPush = window.vaadinPush || {};
             self.onclose && self.onclose(e);
         };
         self.sock.onmessage = function(e) {
-            self.onmessage && self.onmessage(e);
+            if (self.firstMessage) {
+                self.firstMessage = false;
+                // TODO: handle first message?
+                self.onopen && self.onopen();
+            } else {
+                self.onmessage && self.onmessage(e);
+            }
         };
         self.sock.onerror = function(e) {
             self.onerror && self.onerror(e);
