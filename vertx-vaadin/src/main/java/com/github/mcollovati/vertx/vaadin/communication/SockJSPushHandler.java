@@ -29,8 +29,10 @@ import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.Session;
 import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSSocket;
+import io.vertx.ext.web.sstore.SessionStore;
 
 /**
  * Handles incoming push connections and messages and dispatches them to the
@@ -42,6 +44,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
 
     private final VertxVaadinService service;
     private final SockJSHandler sockJSHandler;
+    private final SessionStore sessionStore;
 
     /**
      * Callback used when we receive a request to establish a push channel for a
@@ -128,8 +131,9 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         }
     };
 
-    public SockJSPushHandler(VertxVaadinService service, SockJSHandler sockJSHandler) {
+    public SockJSPushHandler(VertxVaadinService service, SessionStore sessionStore, SockJSHandler sockJSHandler) {
         this.service = service;
+        this.sessionStore = sessionStore;
         this.sockJSHandler = sockJSHandler;
         this.sockJSHandler.socketHandler(this::onConnect);
     }
@@ -138,8 +142,32 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         RoutingContext routingContext = CurrentInstance.get(RoutingContext.class);
         callWithUi(new PushEvent(socket, routingContext, null), establishCallback);
 
-        socket.handler(data -> onMessage(new PushEvent(socket, routingContext, data)));
-        socket.exceptionHandler(t -> onError(new PushEvent(socket, routingContext, null), t));
+
+        socket.handler(
+            runAndCommitSessionChanges(
+                socket.webSession(), data -> onMessage(new PushEvent(socket, routingContext, data))
+            ));
+        socket.exceptionHandler(
+            runAndCommitSessionChanges(
+                socket.webSession(), t -> onError(new PushEvent(socket, routingContext, null), t)
+            ));
+    }
+
+    private <T> Handler<T> runAndCommitSessionChanges(Session session, Handler<T> handler) {
+        return obj -> {
+            try {
+                handler.handle(obj);
+            } finally {
+                if (!session.isDestroyed()) {
+                    session.setAccessed();
+                    sessionStore.put(session, res -> {
+                        if (res.failed()) {
+                            getLogger().log(Level.SEVERE, "Failed to store session", res.cause());
+                        }
+                    });
+                }
+            }
+        };
     }
 
 
@@ -256,6 +284,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
 
                 // can't call ErrorHandler, we don't have a lock
             }
+
         }
     }
 

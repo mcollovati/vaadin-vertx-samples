@@ -108,7 +108,7 @@ public class VertxVaadin {
         vaadinRouter.route().handler(BodyHandler.create());
         vaadinRouter.route().handler(sessionHandler);
 
-        initSockJS(vaadinRouter);
+        initSockJS(vaadinRouter, sessionStore);
 
         vaadinRouter.route("/*").handler(routingContext -> {
             VertxVaadinRequest request = new VertxVaadinRequest(service, routingContext);
@@ -127,13 +127,13 @@ public class VertxVaadin {
         return vaadinRouter;
     }
 
-    private void initSockJS(Router vaadinRouter) {
+    private void initSockJS(Router vaadinRouter, SessionStore sessionStore) {
 
         SockJSHandlerOptions options = new SockJSHandlerOptions()
             .setSessionTimeout(config().getLong("sessionTimeout", DEFAULT_SESSION_TIMEOUT))
             .setHeartbeatInterval(service.getDeploymentConfiguration().getHeartbeatInterval() * 1000);
         SockJSHandler sockJSHandler = SockJSHandler.create(vertx, options);
-        SockJSPushHandler pushHandler = new SockJSPushHandler(service, sockJSHandler);
+        SockJSPushHandler pushHandler = new SockJSPushHandler(service, sessionStore, sockJSHandler);
         vaadinRouter.route("/PUSH/*").handler(pushHandler);
     }
 
