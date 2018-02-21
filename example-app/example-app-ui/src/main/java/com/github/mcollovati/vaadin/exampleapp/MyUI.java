@@ -36,7 +36,7 @@ import com.vaadin.ui.themes.ValoTheme;
 public class MyUI extends UI {
 
     private AccessControl accessControl = new BasicAccessControl();
-    private ScheduledExecutorService scheduledExecutorService;
+    private transient ScheduledExecutorService scheduledExecutorService;
 
     @Override
     protected void init(VaadinRequest vaadinRequest) {
@@ -55,10 +55,16 @@ public class MyUI extends UI {
             showMainView();
         }
         UI ui = this;
+    }
+
+    @Override
+    public void attach() {
+        super.attach();
         scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+        UI ui = this;
         scheduledExecutorService.schedule(
             () -> ui.access(() -> getPage().setTitle("Changed"))
-        , 5, TimeUnit.SECONDS);
+            , 5, TimeUnit.SECONDS);
     }
 
     @Override
@@ -73,12 +79,12 @@ public class MyUI extends UI {
         getNavigator().navigateTo(getNavigator().getState());
     }
 
-    public static MyUI get() {
-        return (MyUI) UI.getCurrent();
-    }
-
     public AccessControl getAccessControl() {
         return accessControl;
+    }
+
+    public static MyUI get() {
+        return (MyUI) UI.getCurrent();
     }
 
     @VaadinServletConfiguration(ui = MyUI.class, productionMode = false)
