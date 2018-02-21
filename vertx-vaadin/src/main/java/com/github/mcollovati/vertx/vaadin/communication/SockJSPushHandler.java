@@ -2,6 +2,7 @@ package com.github.mcollovati.vertx.vaadin.communication;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -22,6 +23,7 @@ import com.vaadin.server.communication.ExposeVaadinCommunicationPkg;
 import com.vaadin.server.communication.PushConnection;
 import com.vaadin.server.communication.ServerRpcHandler;
 import com.vaadin.shared.ApplicationConstants;
+import com.vaadin.shared.communication.PushMode;
 import com.vaadin.ui.UI;
 import com.vaadin.util.CurrentInstance;
 import elemental.json.JsonException;
@@ -54,7 +56,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
     private final PushEventCallback establishCallback = (PushEvent event, UI ui) -> {
         getLogger().log(Level.FINER,
             "New push connection for resource {0} with transport {1}",
-            new Object[]{"socket.uuid()", "resource.transport()"});
+            new Object[]{event.socket().writeHandlerID(), "resource.transport()"});
 
 
         // TODO: verify if this is needed with non websocket transports
@@ -90,8 +92,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
      */
     private final PushEventCallback receiveCallback = (PushEvent event, UI ui) -> {
 
-        //getLogger().log(Level.FINER, "Received message from resource {0}",
-        //    resource.uuid());
+        getLogger().log(Level.FINER, "Received message from resource {0}", event.socket().writeHandlerID());
 
         SockJSSocket socket = event.socket;
         SockJSPushConnection connection = getConnectionForUI(ui);
@@ -140,13 +141,23 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
 
     private void onConnect(SockJSSocket socket) {
         RoutingContext routingContext = CurrentInstance.get(RoutingContext.class);
-        callWithUi(new PushEvent(socket, routingContext, null), establishCallback);
 
+        String uuid = socket.writeHandlerID();
+
+        // Send an ACK
+        socket.write(Buffer.buffer("ACK-CONN|" + uuid, "UTF-8"));
+
+        runAndCommitSessionChanges(socket.webSession(), unused -> {
+            callWithUi(new PushEvent(socket, routingContext, null), establishCallback);
+        }).handle(null);
 
         socket.handler(
             runAndCommitSessionChanges(
                 socket.webSession(), data -> onMessage(new PushEvent(socket, routingContext, data))
             ));
+        socket.endHandler(runAndCommitSessionChanges(
+            socket.webSession(), x -> onDisconnect(new PushEvent(socket, routingContext, null))
+        ));
         socket.exceptionHandler(
             runAndCommitSessionChanges(
                 socket.webSession(), t -> onError(new PushEvent(socket, routingContext, null), t)
@@ -171,28 +182,14 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
     }
 
 
-    private void onError(PushEvent ev, Throwable t) {
-        callWithUi(ev, ((event, ui) -> {
-            // Should be set up by caller
-            VaadinRequest vaadinRequest = VaadinService.getCurrentRequest();
-            assert vaadinRequest != null;
-            VaadinSession vaadinSession = VaadinSession.getCurrent();
+    private void onDisconnect(PushEvent ev) {
+        //connectedSockets.remove(ev.socket().writeHandlerID());
+        connectionLost(ev);
+    }
 
-            SystemMessages msg = service
-                .getSystemMessages(ServletPortletHelper.findLocale(null,
-                    null, vaadinRequest), vaadinRequest);
-            SockJSSocket errorSocket = getOpenedPushConnection(ev.socket(), ui);
-            sendNotificationAndDisconnect(errorSocket,
-                VaadinService.createCriticalNotificationJSON(
-                    msg.getInternalErrorCaption(),
-                    msg.getInternalErrorMessage(), null,
-                    msg.getInternalErrorURL()));
-            if (t instanceof Exception) {
-                callErrorHandler(vaadinSession, (Exception) t);
-            } else {
-                getLogger().log(Level.WARNING, "ErrorHandler cannot handle this throwable", t);
-            }
-        }));
+    private void onError(PushEvent ev, Throwable t) {
+        getLogger().log(Level.SEVERE, "Exception in push connection", t);
+        connectionLost(ev);
     }
 
     private void onMessage(PushEvent event) {
@@ -316,6 +313,106 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         }
     }
 
+    void connectionLost(PushEvent event) {
+        // We don't want to use callWithUi here, as it assumes there's a client
+        // request active and does requestStart and requestEnd among other
+        // things.
+
+        VaadinRequest vaadinRequest = new VertxVaadinRequest(service, event.routingContext);
+        VaadinSession session = null;
+
+        try {
+            session = service.findVaadinSession(vaadinRequest);
+        } catch (ServiceException e) {
+            getLogger().log(Level.SEVERE,
+                "Could not get session. This should never happen", e);
+            return;
+        } catch (SessionExpiredException e) {
+            // This happens at least if the server is restarted without
+            // preserving the session. After restart the client reconnects, gets
+            // a session expired notification and then closes the connection and
+            // ends up here
+            getLogger().log(Level.FINER,
+                "Session expired before push disconnect event was received",
+                e);
+            return;
+        }
+
+        UI ui = null;
+        session.lock();
+        try {
+            VaadinSession.setCurrent(session);
+            // Sets UI.currentInstance
+            ui = service.findUI(vaadinRequest);
+            if (ui == null) {
+                /*
+                 * UI not found, could be because FF has asynchronously closed
+                 * the websocket connection and Atmosphere has already done
+                 * cleanup of the request attributes.
+                 *
+                 * In that case, we still have a chance of finding the right UI
+                 * by iterating through the UIs in the session looking for one
+                 * using the same AtmosphereResource.
+                 */
+                ui = findUiUsingSocket(event.socket(), session.getUIs());
+
+                if (ui == null) {
+                    getLogger().log(Level.FINE,
+                        "Could not get UI. This should never happen,"
+                            + " except when reloading in Firefox and Chrome -"
+                            + " see http://dev.vaadin.com/ticket/14251.");
+                    return;
+                } else {
+                    getLogger().log(Level.INFO,
+                        "No UI was found based on data in the request,"
+                            + " but a slower lookup based on the AtmosphereResource succeeded."
+                            + " See http://dev.vaadin.com/ticket/14251 for more details.");
+                }
+            }
+
+            PushMode pushMode = ui.getPushConfiguration().getPushMode();
+            SockJSPushConnection pushConnection = getConnectionForUI(ui);
+
+            String id = event.socket().writeHandlerID();
+
+            if (pushConnection == null) {
+                getLogger().log(Level.WARNING,
+                    "Could not find push connection to close: {0} with transport {1}",
+                    new Object[]{id, "resource.transport()"});
+            } else {
+                if (!pushMode.isEnabled()) {
+                    /*
+                     * The client is expected to close the connection after push
+                     * mode has been set to disabled.
+                     */
+                    getLogger().log(Level.FINER,
+                        "Connection closed for resource {0}", id);
+                } else {
+                    /*
+                     * Unexpected cancel, e.g. if the user closes the browser
+                     * tab.
+                     */
+                    getLogger().log(Level.FINER,
+                        "Connection unexpectedly closed for resource {0} with transport {1}",
+                        new Object[]{id, "resource.transport()"});
+                }
+
+                pushConnection.connectionLost();
+            }
+
+        } catch (final Exception e) {
+            callErrorHandler(session, e);
+        } finally {
+            try {
+                session.unlock();
+            } catch (Exception e) {
+                getLogger().log(Level.WARNING, "Error while unlocking session",
+                    e);
+                // can't call ErrorHandler, we (hopefully) don't have a lock
+            }
+        }
+    }
+
     /**
      * Checks whether a given push id matches the session's push id.
      *
@@ -348,6 +445,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         return Logger.getLogger(SockJSPushHandler.class.getName());
     }
 
+
     private static SockJSPushConnection getConnectionForUI(UI ui) {
         PushConnection pushConnection = ui.getPushConnection();
         if (pushConnection instanceof SockJSPushConnection) {
@@ -355,6 +453,19 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         } else {
             return null;
         }
+    }
+
+    private static UI findUiUsingSocket(SockJSSocket socket, Collection<UI> uIs) {
+        for (UI ui : uIs) {
+            PushConnection pushConnection = ui.getPushConnection();
+            if (pushConnection instanceof SockJSPushConnection) {
+                if (((SockJSPushConnection) pushConnection)
+                    .getSocket() == socket) {
+                    return ui;
+                }
+            }
+        }
+        return null;
     }
 
     private static void sendRefreshAndDisconnect(SockJSSocket socket) {
