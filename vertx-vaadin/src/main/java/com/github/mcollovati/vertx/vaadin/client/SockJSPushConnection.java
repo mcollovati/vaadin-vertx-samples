@@ -126,7 +126,7 @@ public class SockJSPushConnection implements PushConnection {
 
     @Override
     public String getTransportType() {
-        return socket.getTransport();
+        return transport;
     }
 
     @Override
@@ -222,6 +222,10 @@ public class SockJSPushConnection implements PushConnection {
         };
     }-*/;
 
+    protected void onReopen(JavaScriptObject response) {
+        getLogger().info("Push connection re-established using " + socket.getTransport());
+        onConnect(socket);
+    }
 
     protected void onOpen(JavaScriptObject event) {
         getLogger().info(
@@ -292,6 +296,9 @@ public class SockJSPushConnection implements PushConnection {
         config.url = uri;
         config.onOpen = $entry(function(response) {
             self.@com.github.mcollovati.vertx.vaadin.client.SockJSPushConnection::onOpen(*)(response);
+        });
+        config.onRepen = $entry(function(response) {
+            self.@com.github.mcollovati.vertx.vaadin.client.SockJSPushConnection::onReopen(*)(response);
         });
         config.onMessage = $entry(function(response) {
             self.@com.github.mcollovati.vertx.vaadin.client.SockJSPushConnection::onMessage(*)(response);

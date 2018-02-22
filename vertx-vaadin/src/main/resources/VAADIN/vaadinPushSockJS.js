@@ -6174,13 +6174,14 @@ window.vaadinPush = window.vaadinPush || {};
               self.reconnectAttempts = 0;
               // fire separate event for reconnects
               // consistent behavior with adding handlers onopen
-              self.onreconnect && self.onreconnect();
+              self.onreopen && self.onreopen();
             }
         };
 
         self.sock.onclose = function (e) {
-            if (self.reconnectEnabled) {}
+            if (self.reconnectEnabled) {
               if (self.reconnectAttempts < self.maxReconnectAttempts) {
+                self.onreconnect && self.onreconnect();
                 self.sock = null;
                 // set id so users can cancel
                 self.reconnectTimerID = setTimeout(setupSockJSConnection, self.reconnectInterval);
@@ -6188,9 +6189,12 @@ window.vaadinPush = window.vaadinPush || {};
               } else {
                 // notify error
                 var e = new Event('reconnectionError');
+                e.transport = self.sock.transport;
                 self.onerror && self.onerror(e);
               }
-            self.onclose && self.onclose(e);
+            } else {
+                self.onclose && self.onclose(e);
+            }
         };
         self.sock.onmessage = function(e) {
             if (self.firstMessage) {
@@ -6247,6 +6251,7 @@ window.vaadinPush = window.vaadinPush || {};
         sock.onclose = config.onClose;
         sock.onerror = config.onError
         sock.onreconnect = config.onReconnect;
+        sock.onreopen = config.onReopen;
         return sock;
     },
   }
