@@ -62,8 +62,13 @@ public class MyUI extends UI {
         scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
         scheduledExecutorService.schedule(
-            () -> access(() -> getPage().setTitle("Changed"))
-            , 5, TimeUnit.SECONDS);
+            () -> {
+                System.out.println("========== Schedule " + getUI());
+                getUI().access(() -> {
+                    System.out.println("================= Access " + getUI());
+                    getUI().getPage().setTitle("Changed");
+                });
+            }, 15, TimeUnit.SECONDS);
     }
 
     @Override

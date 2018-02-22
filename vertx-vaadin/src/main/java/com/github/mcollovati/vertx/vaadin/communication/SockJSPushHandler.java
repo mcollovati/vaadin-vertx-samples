@@ -3,7 +3,12 @@ package com.github.mcollovati.vertx.vaadin.communication;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -28,8 +33,13 @@ import com.vaadin.ui.UI;
 import com.vaadin.util.CurrentInstance;
 import elemental.json.JsonException;
 import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.DeliveryOptions;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.Session;
 import io.vertx.ext.web.handler.sockjs.SockJSHandler;
@@ -44,45 +54,7 @@ import io.vertx.ext.web.sstore.SessionStore;
  */
 public class SockJSPushHandler implements Handler<RoutingContext> {
 
-    private final VertxVaadinService service;
-    private final SockJSHandler sockJSHandler;
-    private final SessionStore sessionStore;
 
-    /**
-     * Callback used when we receive a request to establish a push channel for a
-     * UI. Associate the SockJS socket with the UI and leave the connection
-     * open. If there is a pending push, send it now.
-     */
-    private final PushEventCallback establishCallback = (PushEvent event, UI ui) -> {
-        getLogger().log(Level.FINER,
-            "New push connection for resource {0} with transport {1}",
-            new Object[]{event.socket().writeHandlerID(), "resource.transport()"});
-
-
-        // TODO: verify if this is needed with non websocket transports
-        //event.routingContext.response().putHeader("Content-Type", "text/plain; charset=UTF-8");
-        //resource.getResponse().setContentType("text/plain; charset=UTF-8");
-
-        VaadinSession session = ui.getSession();
-        SockJSSocket socket = event.socket;
-
-        HttpServerRequest request = event.routingContext.request();
-
-        String requestToken = request.getParam(ApplicationConstants.PUSH_ID_PARAMETER);
-        if (!isPushIdValid(session, requestToken)) {
-            getLogger().log(Level.WARNING,
-                "Invalid identifier in new connection received from {0}",
-                socket.remoteAddress());
-            // Refresh on client side, create connection just for
-            // sending a message
-            sendRefreshAndDisconnect(socket);
-            return;
-        }
-
-        SockJSPushConnection connection = getConnectionForUI(ui);
-        assert (connection != null);
-        connection.connect(socket);
-    };
     /**
      * Callback used when we receive a UIDL request through Atmosphere. If the
      * push channel is bidirectional (websockets), the request was sent via the
@@ -92,9 +64,9 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
      */
     private final PushEventCallback receiveCallback = (PushEvent event, UI ui) -> {
 
-        getLogger().log(Level.FINER, "Received message from resource {0}", event.socket().writeHandlerID());
+        getLogger().log(Level.FINER, "Received message from resource {0}", event.socket().getUUID());
 
-        SockJSSocket socket = event.socket;
+        PushSocket socket = event.socket;
         SockJSPushConnection connection = getConnectionForUI(ui);
 
         assert connection != null : "Got push from the client "
@@ -131,36 +103,101 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
             sendRefreshAndDisconnect(socket);
         }
     };
+    private final VertxVaadinService service;
+    private final SockJSHandler sockJSHandler;
+    private final SessionStore sessionStore;
+    private final Map<String, SockJSSocket> connectedSockets;
+    private final String socketHandlerAddress;
+    private final MessageConsumer<JsonObject> registration;
+    /**
+     * Callback used when we receive a request to establish a push channel for a
+     * UI. Associate the SockJS socket with the UI and leave the connection
+     * open. If there is a pending push, send it now.
+     */
+    private final PushEventCallback establishCallback = (PushEvent event, UI ui) -> {
+        getLogger().log(Level.FINER,
+            "New push connection for resource {0} with transport {1}",
+            new Object[]{event.socket().getUUID(), "resource.transport()"});
+
+
+        // TODO: verify if this is needed with non websocket transports
+        //event.routingContext.response().putHeader("Content-Type", "text/plain; charset=UTF-8");
+        //resource.getResponse().setContentType("text/plain; charset=UTF-8");
+
+        VaadinSession session = ui.getSession();
+        PushSocket socket = event.socket;
+
+        HttpServerRequest request = event.routingContext.request();
+
+        String requestToken = request.getParam(ApplicationConstants.PUSH_ID_PARAMETER);
+        if (!isPushIdValid(session, requestToken)) {
+            getLogger().log(Level.WARNING,
+                "Invalid identifier in new connection received from {0}",
+                socket.remoteAddress());
+            // Refresh on client side, create connection just for
+            // sending a message
+            sendRefreshAndDisconnect(socket);
+            return;
+        }
+
+        SockJSPushConnection connection = getConnectionForUI(ui);
+        assert (connection != null);
+
+        connection.connect(socket);
+        //connection.connect(socket);
+    };
 
     public SockJSPushHandler(VertxVaadinService service, SessionStore sessionStore, SockJSHandler sockJSHandler) {
         this.service = service;
         this.sessionStore = sessionStore;
         this.sockJSHandler = sockJSHandler;
+        this.socketHandlerAddress = UUID.randomUUID().toString();
+        this.connectedSockets = new ConcurrentHashMap<>();
+
+        this.registration = service.getVertx().eventBus().<JsonObject>localConsumer(socketHandlerAddress, this::handlePushAction);
+        service.addServiceDestroyListener(event -> this.registration.unregister());
+
         this.sockJSHandler.socketHandler(this::onConnect);
+
     }
 
-    private void onConnect(SockJSSocket socket) {
+    private void handlePushAction(Message<JsonObject> message) {
+        String socketID = message.headers().get("socketUUID");
+        SockJSSocket socket = connectedSockets.get(socketID);
+        if (socket != null) {
+            JsonObject payload = message.body();
+            PushSocket.Action.fromJsonObject(payload)
+                .onAction(socket, payload);
+            message.reply(null);
+        } else {
+            message.fail(404, "SockJSSocket not registered: " + socketID);
+        }
+    }
+
+    private void onConnect(SockJSSocket sockJSSocket) {
         RoutingContext routingContext = CurrentInstance.get(RoutingContext.class);
 
-        String uuid = socket.writeHandlerID();
+        String uuid = sockJSSocket.writeHandlerID();
+        connectedSockets.put(uuid, sockJSSocket);
+        PushSocket socket = new PushSocketImpl(sockJSSocket, socketHandlerAddress);
 
         // Send an ACK
-        socket.write(Buffer.buffer("ACK-CONN|" + uuid, "UTF-8"));
+        socket.send("ACK-CONN|" + uuid);
 
-        runAndCommitSessionChanges(socket.webSession(), unused -> {
+        runAndCommitSessionChanges(sockJSSocket.webSession(), unused -> {
             callWithUi(new PushEvent(socket, routingContext, null), establishCallback);
         }).handle(null);
 
-        socket.handler(
+        sockJSSocket.handler(
             runAndCommitSessionChanges(
-                socket.webSession(), data -> onMessage(new PushEvent(socket, routingContext, data))
+                sockJSSocket.webSession(), data -> onMessage(new PushEvent(socket, routingContext, data))
             ));
-        socket.endHandler(runAndCommitSessionChanges(
-            socket.webSession(), x -> onDisconnect(new PushEvent(socket, routingContext, null))
+        sockJSSocket.endHandler(runAndCommitSessionChanges(
+            sockJSSocket.webSession(), x -> onDisconnect(new PushEvent(socket, routingContext, null))
         ));
-        socket.exceptionHandler(
+        sockJSSocket.exceptionHandler(
             runAndCommitSessionChanges(
-                socket.webSession(), t -> onError(new PushEvent(socket, routingContext, null), t)
+                sockJSSocket.webSession(), t -> onError(new PushEvent(socket, routingContext, null), t)
             ));
     }
 
@@ -187,9 +224,8 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         };
     }
 
-
     private void onDisconnect(PushEvent ev) {
-        //connectedSockets.remove(ev.socket().writeHandlerID());
+        connectedSockets.remove(ev.socket().getUUID());
         connectionLost(ev);
     }
 
@@ -214,7 +250,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
 
     private void callWithUi(final PushEvent event, final PushEventCallback callback) {
 
-        SockJSSocket socket = event.socket;
+        PushSocket socket = event.socket;
         RoutingContext routingContext = event.routingContext;
         VertxVaadinRequest vaadinRequest = new VertxVaadinRequest(service, routingContext);
         VaadinSession session = null;
@@ -263,7 +299,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
 
 
                 /* TODO: verify */
-                SockJSSocket errorSocket = getOpenedPushConnection(socket, ui);
+                PushSocket errorSocket = getOpenedPushConnection(socket, ui);
                 sendNotificationAndDisconnect(errorSocket,
                     VaadinService.createCriticalNotificationJSON(
                         msg.getInternalErrorCaption(),
@@ -291,8 +327,8 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         }
     }
 
-    private SockJSSocket getOpenedPushConnection(SockJSSocket socket, UI ui) {
-        SockJSSocket errorSocket = socket;
+    private PushSocket getOpenedPushConnection(PushSocket socket, UI ui) {
+        PushSocket errorSocket = socket;
         if (ui != null && ui.getPushConnection() != null) {
             // We MUST use the opened push connection if there is one.
             // Otherwise we will write the response to the wrong request
@@ -379,7 +415,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
             PushMode pushMode = ui.getPushConfiguration().getPushMode();
             SockJSPushConnection pushConnection = getConnectionForUI(ui);
 
-            String id = event.socket().writeHandlerID();
+            String id = event.socket().getUUID();
 
             if (pushConnection == null) {
                 getLogger().log(Level.WARNING,
@@ -437,9 +473,9 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
      * connection. Does nothing if the connection is already closed.
      */
     private static void sendNotificationAndDisconnect(
-        SockJSSocket socket, String notificationJson) {
+        PushSocket socket, String notificationJson) {
         try {
-            socket.write(Buffer.buffer(notificationJson, "UTF-8"));
+            socket.send(notificationJson);
             socket.close();
         } catch (Exception e) {
             getLogger().log(Level.FINEST,
@@ -451,7 +487,6 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         return Logger.getLogger(SockJSPushHandler.class.getName());
     }
 
-
     private static SockJSPushConnection getConnectionForUI(UI ui) {
         PushConnection pushConnection = ui.getPushConnection();
         if (pushConnection instanceof SockJSPushConnection) {
@@ -461,7 +496,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         }
     }
 
-    private static UI findUiUsingSocket(SockJSSocket socket, Collection<UI> uIs) {
+    private static UI findUiUsingSocket(PushSocket socket, Collection<UI> uIs) {
         for (UI ui : uIs) {
             PushConnection pushConnection = ui.getPushConnection();
             if (pushConnection instanceof SockJSPushConnection) {
@@ -474,7 +509,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         return null;
     }
 
-    private static void sendRefreshAndDisconnect(SockJSSocket socket) {
+    private static void sendRefreshAndDisconnect(PushSocket socket) {
         sendNotificationAndDisconnect(socket, VaadinService
             .createCriticalNotificationJSON(null, null, null, null));
     }
@@ -483,18 +518,63 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         void run(PushEvent event, UI ui) throws IOException;
     }
 
+    private static class PushSocketImpl implements PushSocket {
+
+        private final String socketUUID;
+        private final String socketHandlerAddress;
+        private final String remoteAddress;
+
+        public PushSocketImpl(SockJSSocket socket, String socketHandlerAddress) {
+            this.socketUUID = socket.writeHandlerID();
+            this.remoteAddress = socket.remoteAddress().toString();
+            this.socketHandlerAddress = socketHandlerAddress;
+        }
+
+        @Override
+        public String getUUID() {
+            return socketUUID;
+        }
+
+        @Override
+        public String remoteAddress() {
+            return remoteAddress;
+        }
+
+        @Override
+        public CompletionStage<?> send(String message) {
+            JsonObject payload = Action.SEND.toJsonObject()
+                .put("message", message);
+            return runCommand(payload);
+        }
+
+        @Override
+        public CompletionStage<?> close() {
+
+            return runCommand(Action.CLOSE.toJsonObject());
+        }
+
+        private CompletionStage<?> runCommand(JsonObject payload) {
+            CompletableFuture<?> completer = new CompletableFuture<>();
+            DeliveryOptions opts = new DeliveryOptions();
+            opts.addHeader("socketUUID", socketUUID);
+            Vertx.currentContext().owner().eventBus()
+                .send(socketHandlerAddress, payload, opts, res -> completer.complete(null));
+            return completer;
+        }
+    }
+
     private static class PushEvent {
         private final Buffer message;
         private final RoutingContext routingContext;
-        private final SockJSSocket socket;
+        private final PushSocket socket;
 
-        PushEvent(SockJSSocket socket, RoutingContext routingContext, Buffer message) {
+        PushEvent(PushSocket socket, RoutingContext routingContext, Buffer message) {
             this.message = message;
             this.routingContext = routingContext;
             this.socket = socket;
         }
 
-        public SockJSSocket socket() {
+        public PushSocket socket() {
             return socket;
         }
 
