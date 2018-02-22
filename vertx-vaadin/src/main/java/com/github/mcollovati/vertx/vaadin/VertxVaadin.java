@@ -95,6 +95,7 @@ public class VertxVaadin {
         SessionHandler sessionHandler = SessionHandler.create(sessionStore)
             .setSessionTimeout(config().getLong("sessionTimeout", DEFAULT_SESSION_TIMEOUT))
             .setSessionCookieName(sessionCookieName)
+            .setNagHttps(false)
             .setCookieHttpOnlyFlag(true);
 
         Router vaadinRouter = Router.router(vertx);

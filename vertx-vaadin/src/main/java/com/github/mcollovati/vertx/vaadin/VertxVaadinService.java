@@ -78,17 +78,6 @@ public class VertxVaadinService extends VaadinService {
         List<RequestHandler> handlers = super.createRequestHandlers();
         handlers.add(0, new VertxBootstrapHandler());
         handlers.add(new ServletUIInitHandler());
-        if (isAtmosphereAvailable()) {
-            handlers.add((RequestHandler) (session, request, response) -> {
-                if (!ServletPortletHelper.isPushRequest(request)) {
-                    return false;
-                }
-                if (request instanceof VertxVaadinRequest) {
-                    ((VertxVaadinRequest) request).getRoutingContext().next();
-                }
-                return true;
-            });
-        }
         return handlers;
     }
 
