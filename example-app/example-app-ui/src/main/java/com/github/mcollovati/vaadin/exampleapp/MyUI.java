@@ -68,7 +68,8 @@ public class MyUI extends UI {
                     System.out.println("================= Access " + getUI());
                     getUI().getPage().setTitle("Changed");
                 });
-            }, 15, TimeUnit.SECONDS);
+            }
+            , 15, TimeUnit.SECONDS);
     }
 
     @Override
