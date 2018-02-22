@@ -54,23 +54,24 @@ public class MyUI extends UI {
         } else {
             showMainView();
         }
-        UI ui = this;
     }
 
     @Override
     public void attach() {
         super.attach();
         scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-        UI ui = this;
+
         scheduledExecutorService.schedule(
-            () -> ui.access(() -> getPage().setTitle("Changed"))
+            () -> access(() -> getPage().setTitle("Changed"))
             , 5, TimeUnit.SECONDS);
     }
 
     @Override
     public void detach() {
         super.detach();
-        scheduledExecutorService.shutdown();
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdown();
+        }
     }
 
     protected void showMainView() {
