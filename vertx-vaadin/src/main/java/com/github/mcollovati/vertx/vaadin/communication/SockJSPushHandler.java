@@ -440,7 +440,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         SockJSSocket socket, String notificationJson) {
         try {
             socket.write(Buffer.buffer(notificationJson, "UTF-8"));
-            socket.end();
+            socket.close();
         } catch (Exception e) {
             getLogger().log(Level.FINEST,
                 "Failed to send critical notification to client", e);
