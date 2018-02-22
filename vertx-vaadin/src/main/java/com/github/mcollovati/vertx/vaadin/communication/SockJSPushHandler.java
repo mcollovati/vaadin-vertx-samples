@@ -176,6 +176,12 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
                             getLogger().log(Level.SEVERE, "Failed to store session", res.cause());
                         }
                     });
+                } else {
+                    sessionStore.delete(session.id(), res -> {
+                        if (res.failed()) {
+                            getLogger().log(Level.SEVERE, "Failed to delete session", res.cause());
+                        }
+                    });
                 }
             }
         };
