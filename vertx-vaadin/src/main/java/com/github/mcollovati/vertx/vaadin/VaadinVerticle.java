@@ -22,6 +22,11 @@
  */
 package com.github.mcollovati.vertx.vaadin;
 
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.net.ServerSocket;
+import java.util.Optional;
+
 import com.vaadin.annotations.VaadinServletConfiguration;
 import com.vaadin.server.VaadinSession;
 import com.vaadin.ui.UI;
@@ -32,13 +37,8 @@ import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
-import io.vertx.ext.web.handler.sockjs.SockJSHandler;
-import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.lang.reflect.Method;
-import java.util.Optional;
 
 /**
  * Created by marco on 16/07/16.
@@ -75,15 +75,24 @@ public class VaadinVerticle extends AbstractVerticle {
         Router router = Router.router(vertx);
         router.mountSubRouter(mountPoint, vertxVaadin.router());
 
-        //httpServer.websocketHandler(vertxVaadin.webSocketHandler());
-        httpServer.requestHandler(router::accept).listen(config().getInteger("httpPort", 8080));
-
+        Integer httpPort = httpPort();
+        httpServer.requestHandler(router::accept).listen(httpPort);
 
         serviceInitialized(vaadinService, router);
 
 
-        log.info("Started vaadin verticle " + getClass().getName());
+        log.info("Started vaadin verticle " + getClass().getName() + " on port " + httpPort);
         startFuture.complete();
+    }
+
+    private Integer httpPort() throws IOException {
+        Integer httpPort = config().getInteger("httpPort", 8080);
+        if (httpPort == 0) {
+            try (ServerSocket socket = new ServerSocket(0)) {
+                httpPort = socket.getLocalPort();
+            }
+        }
+        return httpPort;
     }
 
     protected VertxVaadin createVertxVaadin(JsonObject vaadinConfig) {
