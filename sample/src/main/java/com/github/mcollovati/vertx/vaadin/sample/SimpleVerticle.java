@@ -13,7 +13,7 @@ import sun.security.krb5.internal.crypto.crc32;
 /**
  * Created by marco on 22/07/16.
  */
-@VaadinVerticleConfiguration(mountPoint = "/simple")
+@VaadinVerticleConfiguration(mountPoint = "/simple", serviceName = "SimpleVerticleVaadinService")
 @VaadinServletConfiguration(ui = SimpleUI.class, productionMode = false)
 public class SimpleVerticle extends VaadinVerticle {
 
