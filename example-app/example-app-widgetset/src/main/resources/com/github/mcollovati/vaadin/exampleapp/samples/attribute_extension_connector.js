@@ -1,4 +1,4 @@
-window.com_github_mcollovati_vaadin_sockjs_samples_AttributeExtension = function() {
+window.com_github_mcollovati_vaadin_exampleapp_samples_AttributeExtension = function() {
 
     this.onStateChange = function() {
         var element = this.getElement(this.getParentId());
