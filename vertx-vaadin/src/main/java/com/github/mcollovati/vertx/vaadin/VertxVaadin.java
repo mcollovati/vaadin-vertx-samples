@@ -3,15 +3,22 @@ package com.github.mcollovati.vertx.vaadin;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.github.mcollovati.vertx.vaadin.communication.SockJSPushHandler;
+import com.github.mcollovati.vertx.web.ExtendedSession;
 import com.github.mcollovati.vertx.web.sstore.SessionStoreAdapter;
 import com.vaadin.server.DefaultDeploymentConfiguration;
 import com.vaadin.server.ServiceException;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxException;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.Session;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CookieHandler;
 import io.vertx.ext.web.handler.SessionHandler;
@@ -30,6 +37,7 @@ public class VertxVaadin {
     private final JsonObject config;
     private final Vertx vertx;
     private final Router router;
+    private final SessionStore sessionStore;
 
     private VertxVaadin(Vertx vertx, Optional<SessionStore> sessionStore, JsonObject config) {
         this.vertx = Objects.requireNonNull(vertx);
@@ -42,6 +50,7 @@ public class VertxVaadin {
         }
         SessionStore adaptedSessionStore = SessionStoreAdapter.adapt(service, sessionStore.orElseGet(this::createSessionStore));
         this.router = initRouter(adaptedSessionStore);
+        this.sessionStore = adaptedSessionStore;
     }
 
     protected VertxVaadin(Vertx vertx, SessionStore sessionStore, JsonObject config) {
@@ -68,6 +77,44 @@ public class VertxVaadin {
     public String serviceName() {
         return config.getString("serviceName", getClass().getName() + ".service");
     }
+
+
+
+
+    public void runWithSession(String sessionId, Handler<AsyncResult<ExtendedSession>> handler) {
+        sessionStore.get(sessionId, res -> {
+            if (res.succeeded() && res.result() != null) {
+                runAndCommitSessionChanges(res.result(), handler)
+                    .handle(Future.succeededFuture(ExtendedSession.adapt(res.result())));
+            } else {
+                handler.handle(Future.failedFuture("Session does not exists: " + sessionId));
+            }
+        });
+    }
+
+    public final <T> Handler<T> runAndCommitSessionChanges(Session session, Handler<T> handler) {
+        return obj -> {
+            try {
+                handler.handle(obj);
+            } finally {
+                if (!session.isDestroyed()) {
+                    session.setAccessed();
+                    sessionStore.put(session, res -> {
+                        if (res.failed()) {
+                            getLogger().log(Level.SEVERE, "Failed to store session", res.cause());
+                        }
+                    });
+                } else {
+                    sessionStore.delete(session.id(), res -> {
+                        if (res.failed()) {
+                            getLogger().log(Level.SEVERE, "Failed to delete session", res.cause());
+                        }
+                    });
+                }
+            }
+        };
+    }
+
 
     protected final JsonObject config() {
         return config;
@@ -147,8 +194,6 @@ public class VertxVaadin {
 
     private Properties initProperties() {
         Properties initParameters = new Properties();
-        //readUiFromEnclosingClass(initParameters);
-        //readConfigurationAnnotation(initParameters);
         initParameters.putAll(config().getMap());
         return initParameters;
     }
@@ -162,47 +207,8 @@ public class VertxVaadin {
         return new VertxVaadin(vertx, config);
     }
 
-    /*
-    private void readUiFromEnclosingClass(Properties initParameters) {
-        Class<?> enclosingClass = getClass().getEnclosingClass();
-
-        if (enclosingClass != null && UI.class.isAssignableFrom(enclosingClass)) {
-            initParameters.put(VaadinSession.UI_PARAMETER,
-                enclosingClass.getName());
-        }
+    private static final Logger getLogger() {
+        return Logger.getLogger(VertxVaadin.class.getName());
     }
 
-    private void readConfigurationAnnotation(Properties initParameters) {
-
-        VaadinServletConfiguration configAnnotation = getClass().getAnnotation(VaadinServletConfiguration.class);
-        if (configAnnotation != null) {
-            Method[] methods = VaadinServletConfiguration.class
-                .getDeclaredMethods();
-            for (Method method : methods) {
-                VaadinServletConfiguration.InitParameterName name =
-                    method.getAnnotation(VaadinServletConfiguration.InitParameterName.class);
-                assert name !=
-                    null : "All methods declared in VaadinServletConfiguration should have a @InitParameterName annotation";
-
-                try {
-                    Object value = method.invoke(configAnnotation);
-
-                    String stringValue;
-                    if (value instanceof Class<?>) {
-                        stringValue = ((Class<?>) value).getName();
-                    } else {
-                        stringValue = value.toString();
-                    }
-
-                    initParameters.setProperty(name.value(), stringValue);
-                } catch (Exception e) {
-                    // This should never happen
-                    throw new VertxException(
-                        "Could not read @VaadinServletConfiguration value "
-                            + method.getName(), e);
-                }
-            }
-        }
-    }
-    */
 }

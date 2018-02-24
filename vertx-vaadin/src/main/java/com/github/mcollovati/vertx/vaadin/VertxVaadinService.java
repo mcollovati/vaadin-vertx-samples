@@ -29,6 +29,7 @@ import java.io.InputStream;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import com.github.mcollovati.vertx.web.sstore.SessionStoreAdapter;
 import com.vaadin.server.DefaultDeploymentConfiguration;
@@ -69,6 +70,25 @@ public class VertxVaadinService extends VaadinService {
     public Vertx getVertx() {
         return vertxVaadin.vertx();
     }
+
+
+    public VertxVaadin getVertxVaadin() {
+        return vertxVaadin;
+    }
+
+
+    void runOnCurrentSession(VaadinSession staleSession, Consumer<VaadinSession> consumer) {
+        if (staleSession != null) {
+            vertxVaadin.runWithSession(
+                staleSession.getSession().getId(),
+                // TODO: handle failure
+                sess -> consumer.accept(readFromHttpSession(new VertxWrappedSession(sess.result())))
+            );
+        } else {
+            consumer.accept(null);
+        }
+    }
+
 
     @Override
     protected List<RequestHandler> createRequestHandlers()

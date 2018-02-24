@@ -15,6 +15,7 @@ import java.util.logging.Logger;
 
 import com.github.mcollovati.vertx.vaadin.VertxVaadinRequest;
 import com.github.mcollovati.vertx.vaadin.VertxVaadinService;
+import com.github.mcollovati.vertx.web.ExtendedSession;
 import com.vaadin.server.ErrorEvent;
 import com.vaadin.server.ErrorHandler;
 import com.vaadin.server.LegacyCommunicationManager;
@@ -33,6 +34,7 @@ import com.vaadin.shared.communication.PushMode;
 import com.vaadin.ui.UI;
 import com.vaadin.util.CurrentInstance;
 import elemental.json.JsonException;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -42,6 +44,7 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.Session;
 import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSSocket;
+import io.vertx.ext.web.impl.RoutingContextDecorator;
 import io.vertx.ext.web.sstore.SessionStore;
 
 /**
@@ -162,42 +165,68 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         socket.send("ACK-CONN|" + uuid);
 
 
-        runAndCommitSessionChanges(sockJSSocket.webSession(),
+        service.getVertxVaadin().runAndCommitSessionChanges(sockJSSocket.webSession(),
             unused -> callWithUi(new PushEvent(socket, routingContext, null), establishCallback)
         ).handle(null);
 
+        /*
         sockJSSocket.handler(
-            runAndCommitSessionChanges(
+            service.getVertxVaadin().runAndCommitSessionChanges(
                 sockJSSocket.webSession(), data -> onMessage(new PushEvent(socket, routingContext, data))
             ));
-        sockJSSocket.endHandler(runAndCommitSessionChanges(
-            sockJSSocket.webSession(), x -> onDisconnect(new PushEvent(socket, routingContext, null))
-        ));
+        sockJSSocket.endHandler(
+            service.getVertxVaadin().runAndCommitSessionChanges(
+                sockJSSocket.webSession(), x -> onDisconnect(new PushEvent(socket, routingContext, null))
+            ));
         sockJSSocket.exceptionHandler(
-            runAndCommitSessionChanges(
+            service.getVertxVaadin().runAndCommitSessionChanges(
                 sockJSSocket.webSession(), t -> onError(new PushEvent(socket, routingContext, null), t)
             ));
+            */
+
+        sockJSSocket.handler(msg -> {
+            prepareRoutingContext(sockJSSocket.webSession(), routingContext)
+                .map(rc -> new PushEvent(socket, rc, msg))
+                .setHandler(
+                    service.getVertxVaadin().runAndCommitSessionChanges(routingContext.session(),
+                        ev -> onMessage(ev.result())
+                    ));
+        });
+        sockJSSocket.endHandler(unused -> {
+            prepareRoutingContext(sockJSSocket.webSession(), routingContext)
+                .map(rc -> new PushEvent(socket, rc, null))
+                .setHandler(
+                    service.getVertxVaadin().runAndCommitSessionChanges(routingContext.session(),
+                        ev -> onDisconnect(ev.result())
+                    ));
+        });
+        sockJSSocket.exceptionHandler(t -> {
+            prepareRoutingContext(sockJSSocket.webSession(), routingContext)
+                .map(rc -> new PushEvent(socket, rc, null))
+                .setHandler(
+                    service.getVertxVaadin().runAndCommitSessionChanges(routingContext.session(),
+                        ev -> onError(ev.result(), t)
+                    ));
+        });
     }
 
-    private <T> Handler<T> runAndCommitSessionChanges(Session session, Handler<T> handler) {
-        return obj -> {
-            try {
-                handler.handle(obj);
-            } finally {
-                if (!session.isDestroyed()) {
-                    session.setAccessed();
-                    sessionStore.put(session, res -> {
-                        if (res.failed()) {
-                            getLogger().log(Level.SEVERE, "Failed to store session", res.cause());
-                        }
-                    });
-                } else {
-                    sessionStore.delete(session.id(), res -> {
-                        if (res.failed()) {
-                            getLogger().log(Level.SEVERE, "Failed to delete session", res.cause());
-                        }
-                    });
-                }
+    private Future<RoutingContext> prepareRoutingContext(Session session, RoutingContext routingContext) {
+        Future<ExtendedSession> f1 = Future.future();
+        service.getVertxVaadin().runWithSession(session.id(), res -> {
+            if (res.succeeded()) {
+                f1.complete(res.result());
+            } else {
+                f1.fail(res.cause());
+            }
+        });
+        return f1.map(freshSession -> wrapRoutingContext(routingContext, freshSession));
+    }
+
+    private RoutingContext wrapRoutingContext(RoutingContext source, ExtendedSession session) {
+        return new RoutingContextDecorator(source.currentRoute(), source) {
+            @Override
+            public Session session() {
+                return session;
             }
         };
     }

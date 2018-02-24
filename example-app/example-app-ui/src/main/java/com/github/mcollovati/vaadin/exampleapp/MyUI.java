@@ -1,7 +1,5 @@
 package com.github.mcollovati.vaadin.exampleapp;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import com.github.mcollovati.vaadin.exampleapp.samples.MainScreen;
@@ -9,6 +7,7 @@ import com.github.mcollovati.vaadin.exampleapp.samples.authentication.AccessCont
 import com.github.mcollovati.vaadin.exampleapp.samples.authentication.BasicAccessControl;
 import com.github.mcollovati.vaadin.exampleapp.samples.authentication.LoginScreen;
 import com.github.mcollovati.vaadin.exampleapp.samples.authentication.LoginScreen.LoginListener;
+import com.github.mcollovati.vertx.vaadin.UIProxy;
 import com.github.mcollovati.vertx.vaadin.VaadinVerticle;
 import com.github.mcollovati.vertx.vaadin.communication.SockJSPushConnection;
 import com.vaadin.annotations.Push;
@@ -36,7 +35,6 @@ import com.vaadin.ui.themes.ValoTheme;
 public class MyUI extends UI {
 
     private AccessControl accessControl = new BasicAccessControl();
-    private transient ScheduledExecutorService scheduledExecutorService;
 
     @Override
     protected void init(VaadinRequest vaadinRequest) {
@@ -56,28 +54,30 @@ public class MyUI extends UI {
         }
     }
 
+
+    /* Only for serialization debug purpose
+    private void readObject(ObjectInputStream in)
+        throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        System.out.println("============= MyUI::readObject syncid " + getConnectorTracker().getCurrentSyncId());
+    }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        System.out.println("============= MyUI::writeObject syncid " + getConnectorTracker().getCurrentSyncId());
+        out.defaultWriteObject();
+    }
+    */
+
     @Override
     public void attach() {
         super.attach();
-        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+        UIProxy proxy = new UIProxy(this);
 
-        scheduledExecutorService.schedule(
-            () -> {
-                System.out.println("========== Schedule " + getUI());
-                getUI().access(() -> {
-                    System.out.println("================= Access " + getUI());
-                    getUI().getPage().setTitle("Changed");
-                });
-            }
-            , 15, TimeUnit.SECONDS);
-    }
+        proxy.runLater(() -> {
+            UI safe = UI.getCurrent();
+            safe.getPage().setTitle("Changed with safeUI");
+        }, 15, TimeUnit.SECONDS);
 
-    @Override
-    public void detach() {
-        super.detach();
-        if (scheduledExecutorService != null) {
-            scheduledExecutorService.shutdown();
-        }
     }
 
     protected void showMainView() {
@@ -97,4 +97,6 @@ public class MyUI extends UI {
     @VaadinServletConfiguration(ui = MyUI.class, productionMode = false)
     public static class ExampleUIVerticle extends VaadinVerticle {
     }
+
+
 }
