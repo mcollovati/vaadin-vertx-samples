@@ -18,7 +18,7 @@ import io.vertx.core.buffer.Buffer;
 
 public class SockJSPushConnection implements PushConnection {
 
-    private int uiId;
+    private final int uiId;
     private PushSocket socket;
     private State state = State.DISCONNECTED;
     private transient Future<?> outgoingMessage;

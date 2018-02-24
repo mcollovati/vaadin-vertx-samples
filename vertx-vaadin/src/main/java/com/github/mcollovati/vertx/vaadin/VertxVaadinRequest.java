@@ -22,20 +22,6 @@
  */
 package com.github.mcollovati.vertx.vaadin;
 
-import com.github.mcollovati.vertx.Sync;
-import com.github.mcollovati.vertx.web.ExtendedSession;
-import com.vaadin.server.VaadinRequest;
-import com.vaadin.server.VaadinSession;
-import com.vaadin.server.WrappedSession;
-import io.vertx.core.Future;
-import io.vertx.core.http.HttpHeaders;
-import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.net.SocketAddress;
-import io.vertx.ext.auth.User;
-import io.vertx.ext.web.RoutingContext;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-
 import javax.servlet.http.Cookie;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -55,6 +41,19 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+
+import com.github.mcollovati.vertx.Sync;
+import com.github.mcollovati.vertx.web.ExtendedSession;
+import com.vaadin.server.VaadinRequest;
+import com.vaadin.server.WrappedSession;
+import io.vertx.core.Future;
+import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.net.SocketAddress;
+import io.vertx.ext.auth.User;
+import io.vertx.ext.web.RoutingContext;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
@@ -77,19 +76,6 @@ public class VertxVaadinRequest implements VaadinRequest {
         this.routingContext = routingContext;
         this.request = routingContext.request();
 
-    }
-
-    private static Locale toJavaLocale(io.vertx.ext.web.Locale locale) {
-        return Optional.ofNullable(locale)
-            .map(loc -> new Locale(loc.language(), loc.country(), loc.variant()))
-            .orElse(null);
-    }
-
-    public static Optional<VertxVaadinRequest> tryCast(VaadinRequest request) {
-        if (request instanceof VertxVaadinRequest) {
-            return Optional.of((VertxVaadinRequest) request);
-        }
-        return Optional.empty();
     }
 
     public HttpServerRequest getRequest() {
@@ -300,6 +286,19 @@ public class VertxVaadinRequest implements VaadinRequest {
         return Collections.enumeration(request.headers().getAll(name));
     }
 
+    private static Locale toJavaLocale(io.vertx.ext.web.Locale locale) {
+        return Optional.ofNullable(locale)
+            .map(loc -> new Locale(loc.language(), loc.country(), loc.variant()))
+            .orElse(null);
+    }
+
+    public static Optional<VertxVaadinRequest> tryCast(VaadinRequest request) {
+        if (request instanceof VertxVaadinRequest) {
+            return Optional.of((VertxVaadinRequest) request);
+        }
+        return Optional.empty();
+    }
+
     @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
     private static class VertxPrincipal implements Principal {
 
@@ -310,5 +309,5 @@ public class VertxVaadinRequest implements VaadinRequest {
             return user.principal().getString("username");
         }
     }
-    
+
 }
