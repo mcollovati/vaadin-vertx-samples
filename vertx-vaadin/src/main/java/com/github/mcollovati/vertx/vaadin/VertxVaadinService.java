@@ -25,12 +25,10 @@ package com.github.mcollovati.vertx.vaadin;
 import javax.servlet.http.HttpSessionBindingEvent;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
-import java.util.logging.Level;
 
 import com.github.mcollovati.vertx.web.sstore.SessionStoreAdapter;
 import com.vaadin.server.DefaultDeploymentConfiguration;
@@ -170,7 +168,6 @@ public class VertxVaadinService extends VaadinService {
             .isPushRequest(request));
     }
 
-    // TODO: verify
     @Override
     public String getServiceName() {
         return vertxVaadin.serviceName();
@@ -190,7 +187,7 @@ public class VertxVaadinService extends VaadinService {
         }
         FileSystem fileSystem = getVertx().fileSystem();
         if (fileSystem.existsBlocking(filename)) {
-            
+
             return new ByteArrayInputStream(fileSystem.readFileBlocking(filename).getBytes());
         }
         return null;

@@ -57,7 +57,10 @@ public class VaadinVerticle extends AbstractVerticle {
         VaadinVerticleConfiguration vaadinVerticleConfiguration = getClass().getAnnotation(VaadinVerticleConfiguration.class);
 
         JsonObject vaadinConfig = new JsonObject();
-        vaadinConfig.put("serviceName", this.deploymentID());
+
+        Optional.ofNullable(vaadinVerticleConfiguration)
+            .map(VaadinVerticleConfiguration::serviceName)
+            .ifPresent(serviceName -> vaadinConfig.put("serviceName", serviceName));
         vaadinConfig.put("mountPoint", Optional.ofNullable(vaadinVerticleConfiguration)
             .map(VaadinVerticleConfiguration::mountPoint).orElse("/")
         );

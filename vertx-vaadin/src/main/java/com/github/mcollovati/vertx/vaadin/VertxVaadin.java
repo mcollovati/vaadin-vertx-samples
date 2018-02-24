@@ -10,7 +10,6 @@ import com.vaadin.server.DefaultDeploymentConfiguration;
 import com.vaadin.server.ServiceException;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxException;
-import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
@@ -66,9 +65,8 @@ public class VertxVaadin {
         return service;
     }
 
-    // TODO:
     public String serviceName() {
-        return config.getString("serviceName", getClass().getName());
+        return config.getString("serviceName", getClass().getName() + ".service");
     }
 
     protected final JsonObject config() {
