@@ -3,12 +3,13 @@ package com.github.mcollovati.vertx.vaadin.communication;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.Collection;
-import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -35,11 +36,8 @@ import elemental.json.JsonException;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.eventbus.DeliveryOptions;
-import io.vertx.core.eventbus.Message;
-import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.json.JsonObject;
+import io.vertx.core.shareddata.LocalMap;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.Session;
 import io.vertx.ext.web.handler.sockjs.SockJSHandler;
@@ -106,9 +104,8 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
     private final VertxVaadinService service;
     private final SockJSHandler sockJSHandler;
     private final SessionStore sessionStore;
-    private final Map<String, SockJSSocket> connectedSockets;
+    private final LocalMap<String, SockJSSocket> connectedSocketsLocalMap;
     private final String socketHandlerAddress;
-    private final MessageConsumer<JsonObject> registration;
     /**
      * Callback used when we receive a request to establish a push channel for a
      * UI. Associate the SockJS socket with the UI and leave the connection
@@ -118,11 +115,6 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         getLogger().log(Level.FINER,
             "New push connection for resource {0} with transport {1}",
             new Object[]{event.socket().getUUID(), "resource.transport()"});
-
-
-        // TODO: verify if this is needed with non websocket transports
-        //event.routingContext.response().putHeader("Content-Type", "text/plain; charset=UTF-8");
-        //resource.getResponse().setContentType("text/plain; charset=UTF-8");
 
         VaadinSession session = ui.getSession();
         PushSocket socket = event.socket;
@@ -144,7 +136,6 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         assert (connection != null);
 
         connection.connect(socket);
-        //connection.connect(socket);
     };
 
     public SockJSPushHandler(VertxVaadinService service, SessionStore sessionStore, SockJSHandler sockJSHandler) {
@@ -152,41 +143,28 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         this.sessionStore = sessionStore;
         this.sockJSHandler = sockJSHandler;
         this.socketHandlerAddress = UUID.randomUUID().toString();
-        this.connectedSockets = new ConcurrentHashMap<>();
-
-        this.registration = service.getVertx().eventBus().<JsonObject>localConsumer(socketHandlerAddress, this::handlePushAction);
-        service.addServiceDestroyListener(event -> this.registration.unregister());
+        this.connectedSocketsLocalMap = socketsMap(service.getVertx());
 
         this.sockJSHandler.socketHandler(this::onConnect);
 
+
     }
 
-    private void handlePushAction(Message<JsonObject> message) {
-        String socketID = message.headers().get("socketUUID");
-        SockJSSocket socket = connectedSockets.get(socketID);
-        if (socket != null) {
-            JsonObject payload = message.body();
-            PushSocket.Action.fromJsonObject(payload)
-                .onAction(socket, payload);
-            message.reply(null);
-        } else {
-            message.fail(404, "SockJSSocket not registered: " + socketID);
-        }
-    }
 
     private void onConnect(SockJSSocket sockJSSocket) {
         RoutingContext routingContext = CurrentInstance.get(RoutingContext.class);
 
         String uuid = sockJSSocket.writeHandlerID();
-        connectedSockets.put(uuid, sockJSSocket);
-        PushSocket socket = new PushSocketImpl(sockJSSocket, socketHandlerAddress);
+        connectedSocketsLocalMap.put(uuid, sockJSSocket);
+        PushSocket socket = new PushSocketImpl(sockJSSocket);
 
         // Send an ACK
         socket.send("ACK-CONN|" + uuid);
 
-        runAndCommitSessionChanges(sockJSSocket.webSession(), unused -> {
-            callWithUi(new PushEvent(socket, routingContext, null), establishCallback);
-        }).handle(null);
+
+        runAndCommitSessionChanges(sockJSSocket.webSession(),
+            unused -> callWithUi(new PushEvent(socket, routingContext, null), establishCallback)
+        ).handle(null);
 
         sockJSSocket.handler(
             runAndCommitSessionChanges(
@@ -225,7 +203,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
     }
 
     private void onDisconnect(PushEvent ev) {
-        connectedSockets.remove(ev.socket().getUUID());
+        connectedSocketsLocalMap.remove(ev.socket.getUUID());
         connectionLost(ev);
     }
 
@@ -455,6 +433,10 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         }
     }
 
+    private static LocalMap<String, SockJSSocket> socketsMap(Vertx vertx) {
+        return vertx.sharedData().getLocalMap(SockJSPushHandler.class.getName() + ".push-sockets");
+    }
+
     /**
      * Checks whether a given push id matches the session's push id.
      *
@@ -521,13 +503,11 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
     private static class PushSocketImpl implements PushSocket {
 
         private final String socketUUID;
-        private final String socketHandlerAddress;
         private final String remoteAddress;
 
-        public PushSocketImpl(SockJSSocket socket, String socketHandlerAddress) {
+        public PushSocketImpl(SockJSSocket socket) {
             this.socketUUID = socket.writeHandlerID();
             this.remoteAddress = socket.remoteAddress().toString();
-            this.socketHandlerAddress = socketHandlerAddress;
         }
 
         @Override
@@ -542,24 +522,44 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
 
         @Override
         public CompletionStage<?> send(String message) {
-            JsonObject payload = Action.SEND.toJsonObject()
-                .put("message", message);
-            return runCommand(payload);
+            return runCommand(socket -> {
+                socket.write(Buffer.buffer(message));
+                return Boolean.TRUE;
+            });
         }
 
         @Override
-        public CompletionStage<?> close() {
-
-            return runCommand(Action.CLOSE.toJsonObject());
+        public CompletionStage<Boolean> close() {
+            return runCommand(socket -> {
+                socket.close();
+                return Boolean.TRUE;
+            });
         }
 
-        private CompletionStage<?> runCommand(JsonObject payload) {
-            CompletableFuture<?> completer = new CompletableFuture<>();
-            DeliveryOptions opts = new DeliveryOptions();
-            opts.addHeader("socketUUID", socketUUID);
-            Vertx.currentContext().owner().eventBus()
-                .send(socketHandlerAddress, payload, opts, res -> completer.complete(null));
-            return completer;
+        @Override
+        public boolean isConnected() {
+            try {
+                return runCommand(Objects::nonNull).get(1000, TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        // Should run sync to avoid hanging on vaadin session
+        private <T> CompletableFuture<T> runCommand(Function<SockJSSocket, T> action) {
+            CompletableFuture<T> future = new CompletableFuture<>();
+            Vertx vertx = Vertx.currentContext().owner();
+            SockJSSocket socket = SockJSPushHandler.socketsMap(vertx).get(socketUUID);
+            if (socket != null) {
+                try {
+                    future.complete(action.apply(socket));
+                } catch (Exception ex) {
+                    future.completeExceptionally(ex);
+                }
+            } else {
+                future.completeExceptionally(new RuntimeException("Socket not registered: " + socketUUID));
+            }
+            return future;
         }
     }
 

@@ -10,7 +10,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.vaadin.server.VaadinService;
 import com.vaadin.server.VaadinSession;
 import com.vaadin.server.communication.PushConnection;
 import com.vaadin.server.communication.UidlWriter;
@@ -96,12 +95,19 @@ public class SockJSPushConnection implements PushConnection {
             outgoingMessage = null;
         }
 
-        this.socket.close().thenRun(this::connectionLost);
+        // Should block until disconnection happens
+        try {
+            this.socket.close().thenRun(this::connectionLost)
+                .toCompletableFuture().get();
+        } catch (Exception e) {
+            getLogger().log(Level.INFO, "Error waiting for disconnection");
+            this.connectionLost();
+        }
     }
 
     @Override
     public boolean isConnected() {
-        return state == State.CONNECTED && socket != null;
+        return state == State.CONNECTED && socket != null && socket.isConnected();
     }
 
     void connect(PushSocket socket) {
