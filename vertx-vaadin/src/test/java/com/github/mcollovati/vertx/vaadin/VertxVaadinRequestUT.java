@@ -22,6 +22,18 @@
  */
 package com.github.mcollovati.vertx.vaadin;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import com.github.mcollovati.vertx.utils.RandomStringGenerator;
 import com.github.mcollovati.vertx.web.ExtendedSession;
 import com.pholser.junit.quickcheck.From;
@@ -39,9 +51,9 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.impl.SocketAddressImpl;
 import io.vertx.ext.auth.User;
 import io.vertx.ext.web.Cookie;
-import io.vertx.ext.web.Locale;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.Session;
+import io.vertx.ext.web.impl.ParsableLanguageValue;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -50,18 +62,6 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
@@ -233,8 +233,8 @@ public class VertxVaadinRequestUT {
 
     @Test
     public void shouldDelegateGetLocale() {
-        when(routingContext.preferredLocale()).thenReturn(null)
-            .thenReturn(Locale.create("en", "us"));
+        when(routingContext.preferredLanguage()).thenReturn(null)
+            .thenReturn(new ParsableLanguageValue("en_US"));
         assertThat(vaadinRequest.getLocale()).isNull();
         assertThat(vaadinRequest.getLocale()).isEqualTo(java.util.Locale.forLanguageTag("en-US"));
     }
@@ -342,7 +342,7 @@ public class VertxVaadinRequestUT {
             Handler<AsyncResult<Boolean>> handler = invocation.getArgumentAt(1, Handler.class);
             handler.handle(Future.succeededFuture("USER".equals(role)));
             return user;
-        }).when(user).isAuthorised(isA(String.class), isA(Handler.class));
+        }).when(user).isAuthorized(isA(String.class), isA(Handler.class));
         when(user.principal())
             .thenReturn(new JsonObject().put("username", "marco"))
             .thenReturn(new JsonObject());
@@ -355,8 +355,9 @@ public class VertxVaadinRequestUT {
 
     @Test
     public void shouldDelegateGetLocalesToRoutingContext() {
-        when(routingContext.acceptableLocales()).thenReturn(emptyList(), Arrays.asList(
-            Locale.create("it"), Locale.create("en", "US"), Locale.create("de")
+        when(routingContext.acceptableLanguages()).thenReturn(emptyList(), Arrays.asList(
+            new ParsableLanguageValue("it"), new ParsableLanguageValue("en_US"),
+            new ParsableLanguageValue("de")
         ));
         assertThat(list(vaadinRequest.getLocales())).isEmpty();
         assertThat(list(vaadinRequest.getLocales())).contains(
