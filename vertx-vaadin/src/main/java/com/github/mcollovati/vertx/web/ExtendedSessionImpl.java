@@ -1,5 +1,8 @@
 package com.github.mcollovati.vertx.web;
 
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.shareddata.Shareable;
@@ -7,13 +10,10 @@ import io.vertx.core.shareddata.impl.ClusterSerializable;
 import io.vertx.ext.web.Session;
 import io.vertx.ext.web.sstore.impl.SessionImpl;
 
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-
 /**
  * Created by marco on 27/07/16.
  */
-public class ExtendedSessionImpl implements ExtendedSession, Shareable, ClusterSerializable {
+public class ExtendedSessionImpl extends SessionImpl implements ExtendedSession, Shareable, ClusterSerializable {
 
     protected Session delegate;
     private long createdAt;
@@ -92,6 +92,22 @@ public class ExtendedSessionImpl implements ExtendedSession, Shareable, ClusterS
     @Override
     public long createdAt() {
         return createdAt;
+    }
+
+    @Override
+    public Session regenerateId() {
+        this.createdAt = System.currentTimeMillis();
+        return delegate.regenerateId();
+    }
+
+    @Override
+    public boolean isRegenerated() {
+        return delegate.isRegenerated();
+    }
+
+    @Override
+    public String oldId() {
+        return delegate.oldId();
     }
 
     @Override

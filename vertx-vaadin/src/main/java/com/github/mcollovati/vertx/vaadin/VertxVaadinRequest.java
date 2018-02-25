@@ -46,11 +46,11 @@ import com.github.mcollovati.vertx.Sync;
 import com.github.mcollovati.vertx.web.ExtendedSession;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.server.WrappedSession;
-import io.vertx.core.Future;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.ext.auth.User;
+import io.vertx.ext.web.LanguageHeader;
 import io.vertx.ext.web.RoutingContext;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -94,7 +94,7 @@ public class VertxVaadinRequest implements VaadinRequest {
     @Override
     public Map<String, String[]> getParameterMap() {
         return request.params().names()
-            .stream().collect(toMap(identity(), k -> request.params().getAll(k).stream().toArray(String[]::new)));
+            .stream().collect(toMap(identity(), k -> request.params().getAll(k).toArray(new String[0])));
     }
 
     @Override
@@ -153,9 +153,7 @@ public class VertxVaadinRequest implements VaadinRequest {
 
     @Override
     public Locale getLocale() {
-        // TODO: in utility class
-        io.vertx.ext.web.Locale loc = routingContext.preferredLocale();
-        return toJavaLocale(loc);
+        return toJavaLocale(routingContext.preferredLanguage());
     }
 
     @Override
@@ -211,8 +209,7 @@ public class VertxVaadinRequest implements VaadinRequest {
     @Override
     public boolean isUserInRole(String role) {
         if (routingContext.user() != null) {
-            Future<Boolean> userInRole = Future.future();
-            return Sync.await(completer -> routingContext.user().isAuthorised(role, completer));
+            return Sync.await(completer -> routingContext.user().isAuthorized(role, completer));
         }
         return false;
     }
@@ -224,7 +221,7 @@ public class VertxVaadinRequest implements VaadinRequest {
 
     @Override
     public Enumeration<Locale> getLocales() {
-        return Collections.enumeration(routingContext.acceptableLocales().stream()
+        return Collections.enumeration(routingContext.acceptableLanguages().stream()
             .map(VertxVaadinRequest::toJavaLocale).collect(toList()));
     }
 
@@ -286,9 +283,12 @@ public class VertxVaadinRequest implements VaadinRequest {
         return Collections.enumeration(request.headers().getAll(name));
     }
 
-    private static Locale toJavaLocale(io.vertx.ext.web.Locale locale) {
+    private static Locale toJavaLocale(LanguageHeader locale) {
         return Optional.ofNullable(locale)
-            .map(loc -> new Locale(loc.language(), loc.country(), loc.variant()))
+            .map(loc -> new Locale(loc.tag(),
+                Optional.ofNullable(loc.subtag()).orElse(""),
+                Optional.ofNullable(loc.subtag(2)).orElse("")
+            ))
             .orElse(null);
     }
 

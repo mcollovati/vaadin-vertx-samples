@@ -7,7 +7,6 @@ import com.github.mcollovati.vertx.vaadin.VertxWrappedSession;
 import com.github.mcollovati.vertx.web.ExtendedSession;
 import com.hazelcast.core.EntryEvent;
 import com.hazelcast.core.IMap;
-import com.hazelcast.map.MapInterceptor;
 import com.hazelcast.map.impl.MapListenerAdapter;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
@@ -78,6 +77,11 @@ public class ClusteredSessionStoreAdapter implements ClusteredSessionStore {
     }
 
     @Override
+    public Session createSession(long timeout, int length) {
+        return ExtendedSession.adapt(sessionStore.createSession(timeout, length));
+    }
+
+    @Override
     public void get(String id, Handler<AsyncResult<Session>> resultHandler) {
         Handler<AsyncResult<Session>> refreshTransientAndDelegate = event -> {
             if (event.succeeded() && event.result() != null) {
@@ -89,12 +93,12 @@ public class ClusteredSessionStoreAdapter implements ClusteredSessionStore {
     }
 
     @Override
-    public void delete(String id, Handler<AsyncResult<Boolean>> resultHandler) {
+    public void delete(String id, Handler<AsyncResult<Void>> resultHandler) {
         sessionStore.delete(id, resultHandler);
     }
 
     @Override
-    public void put(Session session, Handler<AsyncResult<Boolean>> resultHandler) {
+    public void put(Session session, Handler<AsyncResult<Void>> resultHandler) {
         sessionStore.put(session, e -> {
             adaptListener();
             resultHandler.handle(e);
@@ -102,7 +106,7 @@ public class ClusteredSessionStoreAdapter implements ClusteredSessionStore {
     }
 
     @Override
-    public void clear(Handler<AsyncResult<Boolean>> resultHandler) {
+    public void clear(Handler<AsyncResult<Void>> resultHandler) {
         sessionStore.clear(resultHandler);
     }
 

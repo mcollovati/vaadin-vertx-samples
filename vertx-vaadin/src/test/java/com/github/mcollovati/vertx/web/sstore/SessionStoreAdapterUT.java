@@ -71,7 +71,7 @@ public class SessionStoreAdapterUT {
             context.assertEquals(session.id(), event.body());
             async.countDown();
         });
-        adapted.put(session, Future.<Boolean>future().completer());
+        adapted.put(session, Future.<Void>future().completer());
         session.put("a", "b");
     }
 
@@ -100,7 +100,7 @@ public class SessionStoreAdapterUT {
                 context.assertEquals(session.id(), event.body());
                 async.countDown();
             });
-            adapted.put(session, Future.<Boolean>future().completer());
+            adapted.put(session, Future.<Void>future().completer());
             session.put("a", "b");
 
         });
