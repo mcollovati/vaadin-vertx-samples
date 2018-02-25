@@ -11,7 +11,9 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.shareddata.AsyncMap;
+import io.vertx.core.shareddata.LocalMap;
 import io.vertx.ext.auth.PRNG;
+import io.vertx.ext.unit.Async;
 import io.vertx.ext.unit.TestContext;
 import io.vertx.ext.unit.junit.RunTestOnContext;
 import io.vertx.ext.unit.junit.VertxUnitRunner;
@@ -20,6 +22,7 @@ import io.vertx.ext.web.sstore.SessionStore;
 import io.vertx.ext.web.sstore.impl.SessionImpl;
 import io.vertx.spi.cluster.hazelcast.HazelcastClusterManager;
 import org.assertj.core.data.Offset;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -30,27 +33,51 @@ import static org.assertj.core.api.Assertions.assertThat;
 @RunWith(VertxUnitRunner.class)
 public class NearCacheSessionStoreUT {
 
+    public static final int DEFAULT_TIMEOUT = 30 * 60 * 1000;
     @Rule
     public RunTestOnContext rule = new RunTestOnContext(() -> Sync.await(completer -> Vertx.clusteredVertx(
         new VertxOptions().setClusterManager(new HazelcastClusterManager()), completer
     )));
+    private LocalMap<String, Session> localMap;
+    private AsyncMap<String, Session> remoteMap;
 
-
-    private void assertOnRemoteMap(TestContext context, Session session, Handler<AsyncResult<Session>> handler) {
-        rule.vertx().sharedData().getClusterWideMap(
-            NearCacheSessionStore.DEFAULT_SESSION_MAP_NAME,
-            context.<AsyncMap<String, Session>>asyncAssertSuccess(x -> x.get(session.id(), handler))
-        );
+    @Before
+    public void setup(TestContext context) {
+        getRemoteMap(context, context.asyncAssertSuccess());
+        localMap = getLocalMap();
     }
 
-    private void assertOnLocalMap(TestContext context, Session session, Handler<AsyncResult<Session>> handler) {
+
+    private void getRemoteMap(TestContext context, Handler<AsyncResult<AsyncMap<String, Session>>> resultHandler) {
+        if (remoteMap == null) {
+            rule.vertx().sharedData().<String, Session>getClusterWideMap(NearCacheSessionStore.DEFAULT_SESSION_MAP_NAME, res -> {
+                if (res.succeeded()) {
+                    remoteMap = res.result();
+                    resultHandler.handle(Future.succeededFuture(res.result()));
+                } else {
+                    resultHandler.handle(res);
+                }
+            });
+        } else {
+            resultHandler.handle(Future.succeededFuture(remoteMap));
+        }
+    }
+
+    private void doWithRemoteSession(TestContext context, Session session, Handler<AsyncResult<Session>> handler) {
+        remoteMap.get(session.id(), handler);
+    }
+
+    private void doWithLocalSession(TestContext context, Session session, Handler<AsyncResult<Session>> handler) {
         try {
-            Session localSession = (Session) rule.vertx().sharedData()
-                .getLocalMap(NearCacheSessionStore.DEFAULT_SESSION_MAP_NAME).get(session.id());
+            Session localSession = localMap.get(session.id());
             handler.handle(Future.succeededFuture(localSession));
         } catch (Exception ex) {
             handler.handle(Future.failedFuture(ex));
         }
+    }
+
+    private LocalMap<String, Session> getLocalMap() {
+        return rule.vertx().sharedData().getLocalMap(NearCacheSessionStore.DEFAULT_SESSION_MAP_NAME);
     }
 
 
@@ -68,7 +95,7 @@ public class NearCacheSessionStoreUT {
 
     }
 
-    @Test(timeout = 150000)
+    @Test(timeout = 3000)
     public void testPut(TestContext context) {
         Vertx vertx = rule.vertx();
 
@@ -79,16 +106,131 @@ public class NearCacheSessionStoreUT {
 
         SessionStore sessionStore = NearCacheSessionStore.create(vertx);
         sessionStore.put(session, context.asyncAssertSuccess(b -> {
-            assertOnRemoteMap(context, session, context.asyncAssertSuccess(s ->
+            doWithRemoteSession(context, session, context.asyncAssertSuccess(s ->
                 context.verify(unused -> assertSessionProperties(session, s))
             ));
-            assertOnLocalMap(context, session, context.asyncAssertSuccess(s ->
+            doWithLocalSession(context, session, context.asyncAssertSuccess(s ->
                 context.verify(unused -> {
                     assertSessionProperties(session, s);
 
                 })
             ));
         }));
+    }
+
+    @Test(timeout = 5000)
+    public void getShouldReturnLocalSessionIfPresent(TestContext context) {
+        Vertx vertx = rule.vertx();
+        TestObject testObject = new TestObject("TestObject");
+        ExtendedSession session = createSession(vertx);
+        String testObjKey = "testObjKey";
+        session.put(testObjKey, testObject);
+        localMap.put(session.id(), session);
+
+        SessionStore sessionStore = NearCacheSessionStore.create(vertx);
+
+        sessionStore.get(session.id(), context.asyncAssertSuccess(s -> {
+            assertSessionProperties(session, s);
+            assertThat(s.<TestObject>get(testObjKey)).isSameAs(testObject);
+        }));
+    }
+
+    @Test(timeout = 5000)
+    public void getShouldReturnRemoteSessionIfLocalIsMissingPresent(TestContext context) {
+        Vertx vertx = rule.vertx();
+        TestObject testObject = new TestObject("TestObject");
+        ExtendedSession session = createSession(vertx);
+        String testObjKey = "testObjKey";
+        session.put(testObjKey, testObject);
+        remoteMap.put(session.id(), session, context.asyncAssertSuccess());
+
+        SessionStore sessionStore = NearCacheSessionStore.create(vertx);
+
+        sessionStore.get(session.id(), context.asyncAssertSuccess(s -> {
+            assertSessionProperties(session, s);
+            assertThat(s.<TestObject>get(testObjKey)).isNotSameAs(testObject).isEqualTo(testObject);
+        }));
+    }
+
+    @Test(timeout = 5000)
+    public void deleteShouldSucceedIfSessionDoesNotExist(TestContext context) {
+        Vertx vertx = rule.vertx();
+        SessionStore sessionStore = NearCacheSessionStore.create(vertx);
+        sessionStore.delete("XY", context.asyncAssertSuccess());
+    }
+
+    @Test(timeout = 5000)
+    public void deleteShouldRemoveSessionFromLocalAndRemote(TestContext context) {
+        Vertx vertx = rule.vertx();
+        SessionStore sessionStore = NearCacheSessionStore.create(vertx);
+        Session session = sessionStore.createSession(DEFAULT_TIMEOUT);
+        TestObject testObject = new TestObject("TestObject");
+        session.put("TEST_KEY", testObject);
+
+        sessionStore.delete("XY", context.asyncAssertSuccess(u -> {
+            doWithLocalSession(context, session, context.asyncAssertSuccess(context::assertNull));
+            doWithRemoteSession(context, session, context.asyncAssertSuccess(context::assertNull));
+        }));
+    }
+
+    @Test(timeout = 5000)
+    public void clearShouldSucceedIfSessionDoesNotExist(TestContext context) {
+        Vertx vertx = rule.vertx();
+        SessionStore sessionStore = NearCacheSessionStore.create(vertx);
+        sessionStore.clear(context.asyncAssertSuccess());
+    }
+
+    @Test(timeout = 5000)
+    public void clearShouldEmptyLocalAndRemoteSession(TestContext context) {
+        Vertx vertx = rule.vertx();
+        SessionStore sessionStore = NearCacheSessionStore.create(vertx);
+        Session session = sessionStore.createSession(DEFAULT_TIMEOUT);
+        TestObject testObject = new TestObject("TestObject");
+        session.put("TEST_KEY", testObject);
+
+        sessionStore.clear(context.asyncAssertSuccess(u -> {
+            context.assertTrue(localMap.isEmpty(), "Local map should be empty");
+            remoteMap.size(context.asyncAssertSuccess(size ->
+                context.assertTrue(size == 0, "Remote map should be empty")
+            ));
+
+        }));
+    }
+
+    @Test
+    public void storeShouldRemoveExpiredSessionFromLocalAndRemote(TestContext context) {
+        Vertx vertx = rule.vertx();
+        Async async = context.async();
+        SessionStore sessionStore = NearCacheSessionStore.create(vertx);
+        Session session = sessionStore.createSession(3000);
+        sessionStore.put(session, context.asyncAssertSuccess());
+
+
+        vertx.setTimer(5000, unused -> {
+            sessionStore.get("XY", context.asyncAssertSuccess(u -> {
+                doWithRemoteSession(context, session, context.asyncAssertSuccess(s ->
+                    context.assertNull(s, "Remote session should not be present")
+                ));
+                doWithLocalSession(context, session, context.asyncAssertSuccess(s ->
+                    context.assertNull(s, "Local session should not be present")
+                ));
+            }));
+            async.complete();
+        });
+    }
+
+    @Test(timeout = 5000)
+    public void storeShouldFireExpirationEvent(TestContext context) {
+        Vertx vertx = rule.vertx();
+        Async async = context.async(2);
+        NearCacheSessionStore sessionStore = NearCacheSessionStore.create(vertx);
+        sessionStore.expirationHandler(sessionId -> async.countDown());
+
+        Session session = sessionStore.createSession(1000);
+        sessionStore.put(session, context.asyncAssertSuccess());
+
+        Session session2 = sessionStore.createSession(3000);
+        sessionStore.put(session2, context.asyncAssertSuccess());
 
     }
 
