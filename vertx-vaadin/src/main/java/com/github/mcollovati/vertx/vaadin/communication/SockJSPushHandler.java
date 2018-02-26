@@ -2,10 +2,11 @@ package com.github.mcollovati.vertx.vaadin.communication;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
@@ -13,6 +14,7 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.github.mcollovati.vertx.http.HttpServerResponseWrapper;
 import com.github.mcollovati.vertx.vaadin.VertxVaadinRequest;
 import com.github.mcollovati.vertx.vaadin.VertxVaadinService;
 import com.github.mcollovati.vertx.web.ExtendedSession;
@@ -39,13 +41,14 @@ import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.shareddata.LocalMap;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.Session;
+import io.vertx.ext.web.handler.SessionHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSSocket;
 import io.vertx.ext.web.impl.RoutingContextDecorator;
-import io.vertx.ext.web.sstore.SessionStore;
 
 /**
  * Handles incoming push connections and messages and dispatches them to the
@@ -106,9 +109,9 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
     };
     private final VertxVaadinService service;
     private final SockJSHandler sockJSHandler;
-    private final SessionStore sessionStore;
+    private final SessionHandler sessionHandler;
     private final LocalMap<String, SockJSSocket> connectedSocketsLocalMap;
-    private final String socketHandlerAddress;
+
     /**
      * Callback used when we receive a request to establish a push channel for a
      * UI. Associate the SockJS socket with the UI and leave the connection
@@ -141,16 +144,12 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         connection.connect(socket);
     };
 
-    public SockJSPushHandler(VertxVaadinService service, SessionStore sessionStore, SockJSHandler sockJSHandler) {
+    public SockJSPushHandler(VertxVaadinService service, SessionHandler sessionHandler, SockJSHandler sockJSHandler) {
         this.service = service;
-        this.sessionStore = sessionStore;
+        this.sessionHandler = sessionHandler;
         this.sockJSHandler = sockJSHandler;
-        this.socketHandlerAddress = UUID.randomUUID().toString();
         this.connectedSocketsLocalMap = socketsMap(service.getVertx());
-
         this.sockJSHandler.socketHandler(this::onConnect);
-
-
     }
 
 
@@ -161,13 +160,16 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         connectedSocketsLocalMap.put(uuid, sockJSSocket);
         PushSocket socket = new PushSocketImpl(sockJSSocket);
 
+        initSocket(sockJSSocket, routingContext, socket);
+
         // Send an ACK
         socket.send("ACK-CONN|" + uuid);
 
-
+        /*
         service.getVertxVaadin().runAndCommitSessionChanges(sockJSSocket.webSession(),
             unused -> callWithUi(new PushEvent(socket, routingContext, null), establishCallback)
         ).handle(null);
+        */
 
         /*
         sockJSSocket.handler(
@@ -184,6 +186,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
             ));
             */
 
+        /*
         sockJSSocket.handler(msg -> {
             prepareRoutingContext(sockJSSocket.webSession(), routingContext)
                 .map(rc -> new PushEvent(socket, rc, msg))
@@ -208,6 +211,25 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
                         ev -> onError(ev.result(), t)
                     ));
         });
+        */
+        sessionHandler.handle(new SockJSRoutingContext(routingContext, rc ->
+            callWithUi(new PushEvent(socket, routingContext, null), establishCallback)
+        ));
+    }
+
+    private void initSocket(SockJSSocket sockJSSocket, RoutingContext routingContext, PushSocket socket) {
+        sockJSSocket.handler(data -> sessionHandler.handle(
+            new SockJSRoutingContext(routingContext, rc -> {
+                onMessage(new PushEvent(socket, rc, data));
+            })
+        ));
+        sockJSSocket.endHandler(unused -> sessionHandler.handle(
+            new SockJSRoutingContext(routingContext, rc -> onDisconnect(new PushEvent(socket, rc, null)))
+        ));
+        sockJSSocket.exceptionHandler(t -> sessionHandler.handle(
+            new SockJSRoutingContext(routingContext, rc -> onError(new PushEvent(socket, routingContext, null), t))
+        ));
+
     }
 
     private Future<RoutingContext> prepareRoutingContext(Session session, RoutingContext routingContext) {
@@ -224,9 +246,17 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
 
     private RoutingContext wrapRoutingContext(RoutingContext source, ExtendedSession session) {
         return new RoutingContextDecorator(source.currentRoute(), source) {
+
+            private Session session;
+
             @Override
             public Session session() {
-                return session;
+                return this.session;
+            }
+
+            @Override
+            public void setSession(Session session) {
+                this.session = session;
             }
         };
     }
@@ -612,5 +642,54 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         }
     }
 
+
+}
+
+class SockJSRoutingContext extends RoutingContextDecorator {
+
+    private final List<Handler<Void>> headersEndHandlers = new ArrayList<>();
+    private final Handler<RoutingContext> action;
+    private Session session;
+
+    public SockJSRoutingContext(RoutingContext source, Handler<RoutingContext> action) {
+        super(source.currentRoute(), source);
+        this.action = action;
+    }
+
+
+    @Override
+    public HttpServerResponse response() {
+        return new HttpServerResponseWrapper(super.response()) {
+            @Override
+            public int getStatusCode() {
+                return 200;
+            }
+        };
+
+    }
+
+    @Override
+    public Session session() {
+        return this.session;
+    }
+
+    @Override
+    public void setSession(Session session) {
+        this.session = session;
+    }
+
+    @Override
+    public void next() {
+        vertx().runOnContext(future -> {
+            action.handle(this);
+            headersEndHandlers.forEach(h -> h.handle(null));
+        });
+    }
+
+    @Override
+    public int addHeadersEndHandler(Handler<Void> handler) {
+        headersEndHandlers.add(handler);
+        return headersEndHandlers.size();
+    }
 
 }

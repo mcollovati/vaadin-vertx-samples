@@ -96,7 +96,7 @@ public class NearCacheSessionStoreUT {
     }
 
     @Test(timeout = 3000)
-    public void testPut(TestContext context) {
+    public void putShouldUpdateRemoteSession(TestContext context) {
         Vertx vertx = rule.vertx();
 
         TestObject testObject = new TestObject("TestObject");
@@ -116,6 +116,25 @@ public class NearCacheSessionStoreUT {
                 })
             ));
         }));
+    }
+
+    @Test(timeout = 3000)
+    public void consecutiveGetAndPutShouldBeConsistent(TestContext context) {
+        Vertx vertx = rule.vertx();
+
+        TestObject testObject = new TestObject("TestObject");
+        ExtendedSession session = createSession(vertx);
+        String testObjKey = "testObjKey";
+        session.put(testObjKey, testObject);
+
+        SessionStore sessionStore = NearCacheSessionStore.create(vertx);
+        sessionStore.put(session, context.asyncAssertSuccess(x -> {
+            sessionStore.get(session.id(), context.asyncAssertSuccess(freshSession -> {
+                sessionStore.put(freshSession, context.asyncAssertSuccess());
+            }));
+        }));
+
+
     }
 
     @Test(timeout = 5000)

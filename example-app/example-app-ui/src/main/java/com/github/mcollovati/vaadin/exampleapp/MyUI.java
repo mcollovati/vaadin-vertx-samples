@@ -71,12 +71,14 @@ public class MyUI extends UI {
     @Override
     public void attach() {
         super.attach();
+        /*
         UIProxy proxy = new UIProxy(this);
 
         proxy.runLater(() -> {
             UI safe = UI.getCurrent();
             safe.getPage().setTitle("Changed with safeUI");
         }, 15, TimeUnit.SECONDS);
+        */
 
     }
 

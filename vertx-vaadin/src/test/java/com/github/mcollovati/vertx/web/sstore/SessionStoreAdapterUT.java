@@ -67,6 +67,7 @@ public class SessionStoreAdapterUT {
         SessionStore adapted = SessionStoreAdapter.adapt(vertxVaadinService, LocalSessionStore.create(vertx));
         Session session = adapted.createSession(1000);
 
+
         sessionExpiredConsumer = SessionStoreAdapter.sessionExpiredHandler(vertx, event -> {
             context.assertEquals(session.id(), event.body());
             async.countDown();

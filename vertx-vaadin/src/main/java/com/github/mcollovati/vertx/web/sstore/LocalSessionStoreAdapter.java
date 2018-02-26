@@ -6,34 +6,34 @@ import java.util.Objects;
 
 import com.github.mcollovati.vertx.web.ExtendedSession;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.MessageProducer;
 import io.vertx.core.shareddata.LocalMap;
 import io.vertx.ext.web.Session;
+import io.vertx.ext.web.sstore.LocalSessionStore;
 import io.vertx.ext.web.sstore.impl.LocalSessionStoreImpl;
 import org.fest.reflect.core.Reflection;
 
 /**
  * Created by marco on 27/07/16.
  */
-public class LocalSessionStoreAdapter extends LocalSessionStoreImpl {
+public class LocalSessionStoreAdapter extends LocalSessionStoreImpl implements SessionExpirationNotifier<LocalSessionStore> {
 
 
-    private final MessageProducer<String> sessionExpiredProducer;
-    //private final LocalSessionStoreImpl delegate;
+    //private final MessageProducer<String> sessionExpiredProducer;
     private LocalMap<String, Session> localMap;
+    private Handler<String> expirationHandler = id -> {};
 
 
     public LocalSessionStoreAdapter(Vertx vertx, String sessionMapName, long reaperInterval, MessageProducer<String> sessionExpiredProducer) {
         super(vertx, sessionMapName, reaperInterval);
-        this.sessionExpiredProducer = Objects.requireNonNull(sessionExpiredProducer);
+        //this.sessionExpiredProducer = Objects.requireNonNull(sessionExpiredProducer);
         localMap = vertx.sharedData().getLocalMap(sessionMapName);
-        //this.delegate = delegate;
     }
 
     @Override
     public ExtendedSession createSession(long timeout) {
-        //return ExtendedSession.adapt(delegate.createSession(timeout));
         return ExtendedSession.adapt(super.createSession(timeout));
     }
 
@@ -43,46 +43,18 @@ public class LocalSessionStoreAdapter extends LocalSessionStoreImpl {
         super.handle(tid);
         localMap.keySet().forEach(copy::remove);
         Future f = Future.future();
-        copy.values().stream().map(Session::id).forEach(sessionExpiredProducer::send);
+        copy.values().stream().map(Session::id)
+            .forEach(expirationHandler::handle);
+        //.forEach(sessionExpiredProducer::send);
         copy.clear();
     }
 
-    /*
     @Override
-    public long retryTimeout() {
-        return delegate.retryTimeout();
+    public LocalSessionStoreAdapter expirationHandler(Handler<String> handler) {
+        this.expirationHandler = Objects.requireNonNull(handler);
+        return this;
     }
 
-    @Override
-    public void get(String id, Handler<AsyncResult<Session>> resultHandler) {
-        delegate.get(id, resultHandler);
-    }
-
-    @Override
-    public void delete(String id, Handler<AsyncResult<Boolean>> resultHandler) {
-        delegate.delete(id, resultHandler);
-    }
-
-    @Override
-    public void put(Session session, Handler<AsyncResult<Boolean>> resultHandler) {
-        delegate.put(session, resultHandler);
-    }
-
-    @Override
-    public void clear(Handler<AsyncResult<Boolean>> resultHandler) {
-        delegate.clear(resultHandler);
-    }
-
-    @Override
-    public void size(Handler<AsyncResult<Integer>> resultHandler) {
-        delegate.size(resultHandler);
-    }
-
-    @Override
-    public void close() {
-        delegate.close();
-    }
-    */
 
     @SuppressWarnings("unchecked")
     static LocalSessionStoreAdapter of(MessageProducer<String> sessionExpiredProducer, LocalSessionStoreImpl delegate) {
