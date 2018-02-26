@@ -37,6 +37,7 @@ import com.vaadin.server.RequestHandler;
 import com.vaadin.server.ServiceException;
 import com.vaadin.server.ServletPortletHelper;
 import com.vaadin.server.VaadinRequest;
+import com.vaadin.server.VaadinResponse;
 import com.vaadin.server.VaadinService;
 import com.vaadin.server.VaadinServlet;
 import com.vaadin.server.VaadinServletService;
@@ -238,7 +239,7 @@ public class VertxVaadinService extends VaadinService {
     public void destroy() {
         super.destroy();
     }
-
+    
     public static String getContextRootRelativePath(VaadinRequest request) {
         VertxVaadinRequest servletRequest = (VertxVaadinRequest) request;
         // Generate location from the request by finding how many "../" should
@@ -270,7 +271,7 @@ public class VertxVaadinService extends VaadinService {
 
         public VertxVaadinSession(VertxVaadinService service) {
             super(service);
-            createSessionExpireConsumer(service);
+            //-//createSessionExpireConsumer(service);
         }
 
         private void createSessionExpireConsumer(VertxVaadinService service) {
@@ -289,15 +290,16 @@ public class VertxVaadinService extends VaadinService {
             try {
                 super.valueUnbound(event);
             } finally {
-                this.sessionExpiredConsumer.unregister();
+                //-//this.sessionExpiredConsumer.unregister();
             }
         }
 
         @Override
         public void refreshTransients(WrappedSession wrappedSession, VaadinService vaadinService) {
             super.refreshTransients(wrappedSession, vaadinService);
-            createSessionExpireConsumer((VertxVaadinService) vaadinService);
+            //-//createSessionExpireConsumer((VertxVaadinService) vaadinService);
         }
+
     }
 
 

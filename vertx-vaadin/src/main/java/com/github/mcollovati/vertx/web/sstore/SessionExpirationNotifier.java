@@ -3,7 +3,7 @@ package com.github.mcollovati.vertx.web.sstore;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.sstore.SessionStore;
 
-public interface ExpirationNotifier<T extends SessionStore> {
+public interface SessionExpirationNotifier<T extends SessionStore> {
 
     /**
      * Set an expiration handler on this {@link SessionStore}.

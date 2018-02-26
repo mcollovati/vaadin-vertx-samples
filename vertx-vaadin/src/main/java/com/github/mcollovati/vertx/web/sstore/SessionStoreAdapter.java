@@ -1,7 +1,6 @@
 package com.github.mcollovati.vertx.web.sstore;
 
 import com.github.mcollovati.vertx.vaadin.VertxVaadinService;
-import com.github.mcollovati.vertx.web.ExtendedSession;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxException;
@@ -20,14 +19,33 @@ public class SessionStoreAdapter {
     private static final String VAADIN_SESSION_EXPIRED_ADDRESS = "vaadin.session.expired";
 
     public static SessionStore adapt(VertxVaadinService vaadinService, SessionStore sessionStore) {
-        MessageProducer<String> sessionMessageProducer = vaadinService.getVertx().eventBus().sender(VAADIN_SESSION_EXPIRED_ADDRESS);
+        MessageProducer<String> sessionMessageProducer = sessionExpiredProducer(vaadinService);
+        if (sessionStore instanceof SessionExpirationNotifier) {
+            return sessionStore;
+        }
         if (sessionStore instanceof LocalSessionStoreImpl) {
-            return LocalSessionStoreAdapter.of(sessionMessageProducer, (LocalSessionStoreImpl) sessionStore);
+            return withSessionExpirationHandler(
+                vaadinService, LocalSessionStoreAdapter.of(sessionMessageProducer, (LocalSessionStoreImpl) sessionStore)
+            );
         }
         if (sessionStore instanceof ClusteredSessionStoreImpl) {
-            return new ClusteredSessionStoreAdapter(sessionMessageProducer, (ClusteredSessionStoreImpl) sessionStore, vaadinService);
+            return withSessionExpirationHandler(vaadinService,
+                new ClusteredSessionStoreAdapter(sessionMessageProducer, (ClusteredSessionStoreImpl) sessionStore, vaadinService)
+            );
         }
         throw new VertxException("Cannot adapt session store of type " + sessionStore.getClass().getName());
+    }
+
+    private static <S extends SessionStore & SessionExpirationNotifier<?>> S withSessionExpirationHandler(
+        VertxVaadinService service, S store
+    ) {
+        MessageProducer<String> sessionExpiredProducer = sessionExpiredProducer(service);
+        store.expirationHandler(sessionExpiredProducer::send);
+        return store;
+    }
+
+    private static MessageProducer<String> sessionExpiredProducer(VertxVaadinService vaadinService) {
+        return vaadinService.getVertx().eventBus().sender(VAADIN_SESSION_EXPIRED_ADDRESS);
     }
 
     public static MessageConsumer<String> sessionExpiredHandler(Vertx vertx, Handler<Message<String>> handler) {

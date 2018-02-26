@@ -55,20 +55,30 @@ class NearCacheSessionStoreImpl implements NearCacheSessionStore, Handler<Long> 
 
     @Override
     public void get(String id, Handler<AsyncResult<Session>> resultHandler) {
-        Future<Session> future = Future.future();
+        clusteredSessionStore.get(id, res -> {
+            if (res.succeeded()) {
+                Session localSession = localMap.get(id);
+                if (localSession == null && res.result() != null) {
+                    localMap.put(id, res.result());
+                }
+                resultHandler.handle(Future.succeededFuture(localMap.get(id)));
+            } else {
+                resultHandler.handle(Future.failedFuture(res.cause()));
+            }
+        });
+        /*
         if (localMap.containsKey(id)) {
-            future.complete(localMap.get(id));
+            resultHandler.handle(Future.succeededFuture(localMap.get(id)));
         } else {
             clusteredSessionStore.get(id, res -> {
                 if (res.succeeded()) {
                     Optional.ofNullable(res.result()).ifPresent(s -> localMap.put(id, s));
-                    future.complete(res.result());
+                    resultHandler.handle(Future.succeededFuture(res.result()));
                 } else {
-                    future.fail(res.cause());
+                    resultHandler.handle(Future.failedFuture(res.cause()));
                 }
             });
-        }
-        future.setHandler(resultHandler);
+        }*/
     }
 
     @Override
@@ -87,8 +97,8 @@ class NearCacheSessionStoreImpl implements NearCacheSessionStore, Handler<Long> 
     @Override
     public void put(Session session, Handler<AsyncResult<Void>> resultHandler) {
         clusteredSessionStore.put(session, res -> {
+            localMap.put(session.id(), session);
             if (res.succeeded()) {
-                localMap.put(session.id(), session);
                 resultHandler.handle(Future.succeededFuture());
             } else {
                 resultHandler.handle(Future.failedFuture(res.cause()));

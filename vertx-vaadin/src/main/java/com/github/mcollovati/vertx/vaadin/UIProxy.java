@@ -23,7 +23,7 @@ public class UIProxy {
     }
 
     public Future<Void> runLater(Runnable runnable) {
-        return runLater(runnable, 0, TimeUnit.MILLISECONDS);
+        return runLater(runnable, 1, TimeUnit.MILLISECONDS);
     }
 
     public Future<Void> runLater(Runnable runnable, long delay, TimeUnit unit) {
@@ -35,6 +35,26 @@ public class UIProxy {
             service.getVertx().setTimer(unit.toMillis(delay), id -> handler.handle(null));
         }
         return future;
+    }
+
+    public Future<Void> runLater2(Runnable runnable) {
+        CompletableFuture<Void> f = new CompletableFuture<>();
+        service.getVertx().createSharedWorkerExecutor("vaadin.background.worker")
+            .executeBlocking(completer -> {
+                try {
+                    runnable.run();
+                    completer.complete();
+                } catch (Exception ex) {
+                    completer.fail(ex);
+                }
+            }, false, res -> {
+                if (res.succeeded()) {
+                    f.complete(null);
+                } else {
+                    f.completeExceptionally(res.cause());
+                }
+            });
+        return f;
     }
 
 

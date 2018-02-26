@@ -1,5 +1,6 @@
 package com.github.mcollovati.vertx.web.sstore;
 
+import java.util.Objects;
 import java.util.Optional;
 
 import com.github.mcollovati.vertx.vaadin.VertxVaadinService;
@@ -21,16 +22,17 @@ import org.fest.reflect.core.Reflection;
 /**
  * Created by marco on 27/07/16.
  */
-public class ClusteredSessionStoreAdapter implements ClusteredSessionStore {
+public class ClusteredSessionStoreAdapter implements ClusteredSessionStore, SessionExpirationNotifier<ClusteredSessionStore> {
 
-    private final MessageProducer<String> sessionExpiredProducer;
+    //private final MessageProducer<String> sessionExpiredProducer;
     private final ClusteredSessionStoreImpl sessionStore;
     private final VertxVaadinService vaadinService;
     private Runnable listenerCleaner;
+    private Handler<String> expirationHandler = id -> {};
 
     public ClusteredSessionStoreAdapter(MessageProducer<String> sessionExpiredProducer, ClusteredSessionStoreImpl sessionStore,
                                         VertxVaadinService vaadinService) {
-        this.sessionExpiredProducer = sessionExpiredProducer;
+        //this.sessionExpiredProducer = sessionExpiredProducer;
         this.sessionStore = sessionStore;
         this.vaadinService = vaadinService;
     }
@@ -45,7 +47,8 @@ public class ClusteredSessionStoreAdapter implements ClusteredSessionStore {
                 .map(imap -> imap.addEntryListener(new MapListenerAdapter<String, Session>() {
                     @Override
                     public void entryExpired(EntryEvent<String, Session> event) {
-                        sessionExpiredProducer.send(event.getKey());
+                        //sessionExpiredProducer.send(event.getKey());
+                        expirationHandler.handle(event.getKey());
                     }
 
                     @Override
@@ -122,4 +125,9 @@ public class ClusteredSessionStoreAdapter implements ClusteredSessionStore {
     }
 
 
+    @Override
+    public ClusteredSessionStore expirationHandler(Handler<String> handler) {
+        this.expirationHandler = Objects.requireNonNull(handler);
+        return this;
+    }
 }

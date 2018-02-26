@@ -4,6 +4,7 @@ import com.github.mcollovati.vaadin.exampleapp.MyUI;
 import com.github.mcollovati.vaadin.exampleapp.samples.about.AboutView;
 import com.github.mcollovati.vaadin.exampleapp.samples.crud.SampleCrudView;
 
+import com.github.mcollovati.vaadin.exampleapp.samples.push.PushView;
 import com.vaadin.icons.VaadinIcons;
 import com.vaadin.navigator.Navigator;
 import com.vaadin.navigator.ViewChangeListener;
@@ -32,6 +33,8 @@ public class MainScreen extends HorizontalLayout {
         menu = new Menu(navigator);
         menu.addView(new SampleCrudView(), SampleCrudView.VIEW_NAME,
                 SampleCrudView.VIEW_NAME, VaadinIcons.EDIT);
+        menu.addView(new PushView(), PushView.VIEW_NAME, PushView.VIEW_NAME,
+            VaadinIcons.RANDOM);
         menu.addView(new AboutView(), AboutView.VIEW_NAME, AboutView.VIEW_NAME,
                 VaadinIcons.INFO_CIRCLE);
 

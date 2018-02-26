@@ -26,11 +26,13 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.ServerSocket;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import com.vaadin.annotations.VaadinServletConfiguration;
 import com.vaadin.server.VaadinSession;
 import com.vaadin.ui.UI;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Future;
 import io.vertx.core.VertxException;
 import io.vertx.core.http.HttpServer;
@@ -82,8 +84,7 @@ public class VaadinVerticle extends AbstractVerticle {
         httpServer.requestHandler(router::accept).listen(httpPort);
 
         serviceInitialized(vaadinService, router);
-
-
+        
         log.info("Started vaadin verticle " + getClass().getName() + " on port " + httpPort);
         startFuture.complete();
     }

@@ -8,14 +8,20 @@ import java.util.logging.Logger;
 
 import com.github.mcollovati.vertx.vaadin.communication.SockJSPushHandler;
 import com.github.mcollovati.vertx.web.ExtendedSession;
+import com.github.mcollovati.vertx.web.sstore.NearCacheSessionStore;
+import com.github.mcollovati.vertx.web.sstore.SessionExpirationNotifier;
 import com.github.mcollovati.vertx.web.sstore.SessionStoreAdapter;
 import com.vaadin.server.DefaultDeploymentConfiguration;
 import com.vaadin.server.ServiceException;
+import com.vaadin.server.WrappedSession;
+import com.vaadin.shared.Registration;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxException;
+import io.vertx.core.eventbus.MessageConsumer;
+import io.vertx.core.eventbus.MessageProducer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.Session;
@@ -39,6 +45,7 @@ public class VertxVaadin {
     private final Router router;
     private final SessionStore sessionStore;
 
+
     private VertxVaadin(Vertx vertx, Optional<SessionStore> sessionStore, JsonObject config) {
         this.vertx = Objects.requireNonNull(vertx);
         this.config = Objects.requireNonNull(config);
@@ -49,8 +56,18 @@ public class VertxVaadin {
             throw new VertxException("Cannot initialize Vaadin service", ex);
         }
         SessionStore adaptedSessionStore = SessionStoreAdapter.adapt(service, sessionStore.orElseGet(this::createSessionStore));
+
         this.router = initRouter(adaptedSessionStore);
         this.sessionStore = adaptedSessionStore;
+        Registration sessionInitListenerReg = this.service.addSessionInitListener(event -> {
+            MessageConsumer<String> consumer = SessionStoreAdapter.sessionExpiredHandler(vertx, msg ->
+                Optional.of(event.getSession().getSession())
+                    .filter(session -> msg.body().equals(session.getId()))
+                    .ifPresent(WrappedSession::invalidate));
+            event.getService().addSessionDestroyListener(ev2 -> consumer.unregister());
+
+        });
+        this.service.addServiceDestroyListener(event -> sessionInitListenerReg.remove());
     }
 
     protected VertxVaadin(Vertx vertx, SessionStore sessionStore, JsonObject config) {
@@ -65,7 +82,6 @@ public class VertxVaadin {
         return router;
     }
 
-
     public final Vertx vertx() {
         return vertx;
     }
@@ -77,8 +93,6 @@ public class VertxVaadin {
     public String serviceName() {
         return config.getString("serviceName", getClass().getName() + ".service");
     }
-
-
 
 
     public void runWithSession(String sessionId, Handler<AsyncResult<ExtendedSession>> handler) {
@@ -129,7 +143,8 @@ public class VertxVaadin {
 
     protected SessionStore createSessionStore() {
         if (vertx.isClustered()) {
-            return ClusteredSessionStore.create(vertx);
+            return NearCacheSessionStore.create(vertx);
+            //return ClusteredSessionStore.create(vertx);
         }
         return LocalSessionStore.create(vertx);
     }
@@ -145,16 +160,17 @@ public class VertxVaadin {
 
         Router vaadinRouter = Router.router(vertx);
         vaadinRouter.route().handler(CookieHandler.create());
+        vaadinRouter.route().handler(BodyHandler.create());
+        // Disable SessionHandler for /VAADIN/ static resources
+        vaadinRouter.routeWithRegex("^(?!/VAADIN/).*$").handler(sessionHandler);
 
         // Forward vaadinPush javascript to sockjs implementation
         vaadinRouter.routeWithRegex("/VAADIN/vaadinPush(\\.debug)?\\.js")
             .handler(ctx -> ctx.reroute("/VAADIN/vaadinPushSockJS.js"));
 
         vaadinRouter.route("/VAADIN/*").handler(StaticHandler.create("VAADIN", getClass().getClassLoader()));
-        vaadinRouter.route().handler(BodyHandler.create());
-        vaadinRouter.route().handler(sessionHandler);
 
-        initSockJS(vaadinRouter, sessionStore);
+        initSockJS(vaadinRouter, sessionHandler);
 
         vaadinRouter.route("/*").handler(routingContext -> {
             VertxVaadinRequest request = new VertxVaadinRequest(service, routingContext);
@@ -173,13 +189,13 @@ public class VertxVaadin {
         return vaadinRouter;
     }
 
-    private void initSockJS(Router vaadinRouter, SessionStore sessionStore) {
+    private void initSockJS(Router vaadinRouter, SessionHandler sessionHandler) {
 
         SockJSHandlerOptions options = new SockJSHandlerOptions()
             .setSessionTimeout(config().getLong("sessionTimeout", DEFAULT_SESSION_TIMEOUT))
             .setHeartbeatInterval(service.getDeploymentConfiguration().getHeartbeatInterval() * 1000);
         SockJSHandler sockJSHandler = SockJSHandler.create(vertx, options);
-        SockJSPushHandler pushHandler = new SockJSPushHandler(service, sessionStore, sockJSHandler);
+        SockJSPushHandler pushHandler = new SockJSPushHandler(service, sessionHandler, sockJSHandler);
         vaadinRouter.route("/PUSH/*").handler(pushHandler);
     }
 
