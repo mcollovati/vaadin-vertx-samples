@@ -9,6 +9,8 @@ import com.vaadin.navigator.View;
 import com.vaadin.ui.Alignment;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Label;
+import com.vaadin.ui.Panel;
+import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
 import com.vaadin.ui.themes.ValoTheme;
 import io.vertx.core.Vertx;
@@ -20,8 +22,10 @@ public class PushView extends VerticalLayout implements View {
     private final Label counterLabel = new Label();
     private final AtomicInteger counter = new AtomicInteger();
     private final AtomicInteger messages = new AtomicInteger();
+    private final VerticalLayout messagesLayout;
 
     public PushView() {
+        setHeight(100, Unit.PERCENTAGE);
         Label title = new Label("Push samples");
         title.setStyleName(ValoTheme.LABEL_H1);
         addComponent(title);
@@ -33,6 +37,13 @@ public class PushView extends VerticalLayout implements View {
         Button button = new Button("Start background thread", this::startBackgroundThread);
         addComponent(button);
 
+        messagesLayout = new VerticalLayout();
+        messagesLayout.setDefaultComponentAlignment(Alignment.TOP_CENTER);
+        Panel panel = new Panel(messagesLayout);
+        panel.setSizeFull();
+        addComponent(panel);
+
+        setExpandRatio(panel, 1);
         setDefaultComponentAlignment(Alignment.TOP_CENTER);
     }
 
@@ -61,14 +72,18 @@ public class PushView extends VerticalLayout implements View {
     private void startBackgroundThread(Button.ClickEvent event) {
         int sleep = ThreadLocalRandom.current().nextInt(5, 20);
         Vertx vertx = ((VertxVaadinService) getSession().getService()).getVertx();
+        UI ui = getUI();
         vertx.setTimer(1, i -> {
             int current = counter.incrementAndGet();
-            getUI().access(() -> {
-                addComponent(new Label("Starting background thread " + current + ", please wait " + sleep + " seconds"));
+            ui.access(() -> {
+                messagesLayout.addComponent(
+                    new Label("Starting background thread " + current + ", please wait " + sleep + " seconds")
+                );
             });
             vertx.setTimer(sleep * 1000, x -> {
-                getUI().access(() -> {
-                    addComponent(new Label("background thread " + current + "completed after " + sleep + " seconds"));
+                ui.access(() -> {
+                    messagesLayout.addComponent(
+                        new Label("background thread " + current + "completed after " + sleep + " seconds"));
                     updateCounter();
                 });
             });
