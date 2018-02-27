@@ -31,7 +31,7 @@ import static io.vertx.ext.web.sstore.SessionStore.DEFAULT_SESSIONID_LENGTH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @RunWith(VertxUnitRunner.class)
-public class NearCacheSessionStoreUT {
+public class NearCacheSessionStoreIT {
 
     public static final int DEFAULT_TIMEOUT = 30 * 60 * 1000;
     @Rule
@@ -243,7 +243,7 @@ public class NearCacheSessionStoreUT {
         Vertx vertx = rule.vertx();
         Async async = context.async(2);
         NearCacheSessionStore sessionStore = NearCacheSessionStore.create(vertx);
-        sessionStore.expirationHandler(sessionId -> async.countDown());
+        sessionStore.expirationHandler(res -> async.countDown());
 
         Session session = sessionStore.createSession(1000);
         sessionStore.put(session, context.asyncAssertSuccess());

@@ -40,7 +40,15 @@ public class SessionStoreAdapter {
         VertxVaadinService service, S store
     ) {
         MessageProducer<String> sessionExpiredProducer = sessionExpiredProducer(service);
-        store.expirationHandler(sessionExpiredProducer::send);
+
+        store.expirationHandler(res -> {
+            if (res.succeeded()) {
+                sessionExpiredProducer.send(res.result());
+            } else {
+                res.cause().printStackTrace();
+            }
+
+        });
         return store;
     }
 

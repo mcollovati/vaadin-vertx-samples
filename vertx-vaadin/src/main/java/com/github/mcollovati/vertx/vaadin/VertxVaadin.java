@@ -8,6 +8,7 @@ import java.util.logging.Logger;
 
 import com.github.mcollovati.vertx.vaadin.communication.SockJSPushHandler;
 import com.github.mcollovati.vertx.web.ExtendedSession;
+import com.github.mcollovati.vertx.web.sstore.ExtendedLocalSessionStore;
 import com.github.mcollovati.vertx.web.sstore.NearCacheSessionStore;
 import com.github.mcollovati.vertx.web.sstore.SessionExpirationNotifier;
 import com.github.mcollovati.vertx.web.sstore.SessionStoreAdapter;
@@ -146,7 +147,8 @@ public class VertxVaadin {
             return NearCacheSessionStore.create(vertx);
             //return ClusteredSessionStore.create(vertx);
         }
-        return LocalSessionStore.create(vertx);
+        //return LocalSessionStore.create(vertx);
+        return ExtendedLocalSessionStore.create(vertx);
     }
 
     private Router initRouter(SessionStore sessionStore) {

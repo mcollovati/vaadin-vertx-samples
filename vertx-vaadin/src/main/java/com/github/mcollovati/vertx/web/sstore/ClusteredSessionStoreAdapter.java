@@ -10,6 +10,7 @@ import com.hazelcast.core.EntryEvent;
 import com.hazelcast.core.IMap;
 import com.hazelcast.map.impl.MapListenerAdapter;
 import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.eventbus.MessageProducer;
 import io.vertx.core.shareddata.AsyncMap;
@@ -28,7 +29,7 @@ public class ClusteredSessionStoreAdapter implements ClusteredSessionStore, Sess
     private final ClusteredSessionStoreImpl sessionStore;
     private final VertxVaadinService vaadinService;
     private Runnable listenerCleaner;
-    private Handler<String> expirationHandler = id -> {};
+    private Handler<AsyncResult<String>> expirationHandler = id -> {};
 
     public ClusteredSessionStoreAdapter(MessageProducer<String> sessionExpiredProducer, ClusteredSessionStoreImpl sessionStore,
                                         VertxVaadinService vaadinService) {
@@ -48,7 +49,7 @@ public class ClusteredSessionStoreAdapter implements ClusteredSessionStore, Sess
                     @Override
                     public void entryExpired(EntryEvent<String, Session> event) {
                         //sessionExpiredProducer.send(event.getKey());
-                        expirationHandler.handle(event.getKey());
+                        expirationHandler.handle(Future.succeededFuture(event.getKey()));
                     }
 
                     @Override
@@ -126,7 +127,7 @@ public class ClusteredSessionStoreAdapter implements ClusteredSessionStore, Sess
 
 
     @Override
-    public ClusteredSessionStore expirationHandler(Handler<String> handler) {
+    public ClusteredSessionStore expirationHandler(Handler<AsyncResult<String>> handler) {
         this.expirationHandler = Objects.requireNonNull(handler);
         return this;
     }
