@@ -7,8 +7,7 @@ import io.vertx.ext.web.sstore.LocalSessionStore;
  * A session store that extends {@link LocalSessionStore} with support
  * for expiration handler
  */
-public interface ExtendedLocalSessionStore extends LocalSessionStore,
-    SessionExpirationNotifier<ExtendedLocalSessionStore> {
+public interface ExtendedLocalSessionStore extends ExtendedSessionStore {
 
     /**
      * Default of how often, in ms, to check for expired sessions
@@ -23,7 +22,7 @@ public interface ExtendedLocalSessionStore extends LocalSessionStore,
     /**
      * Create a session store
      *
-     * @param vertx  the Vert.x instance
+     * @param vertx the Vert.x instance
      * @return the session store
      */
     static ExtendedLocalSessionStore create(Vertx vertx) {
@@ -33,8 +32,8 @@ public interface ExtendedLocalSessionStore extends LocalSessionStore,
     /**
      * Create a session store
      *
-     * @param vertx  the Vert.x instance
-     * @param sessionMapName  name for map used to store sessions
+     * @param vertx          the Vert.x instance
+     * @param sessionMapName name for map used to store sessions
      * @return the session store
      */
     static ExtendedLocalSessionStore create(Vertx vertx, String sessionMapName) {
@@ -44,9 +43,9 @@ public interface ExtendedLocalSessionStore extends LocalSessionStore,
     /**
      * Create a session store
      *
-     * @param vertx  the Vert.x instance
-     * @param sessionMapName  name for map used to store sessions
-     * @param reaperInterval  how often, in ms, to check for expired sessions
+     * @param vertx          the Vert.x instance
+     * @param sessionMapName name for map used to store sessions
+     * @param reaperInterval how often, in ms, to check for expired sessions
      * @return the session store
      */
     static ExtendedLocalSessionStore create(Vertx vertx, String sessionMapName, long reaperInterval) {
