@@ -57,7 +57,7 @@ public class UIProxy {
         return f;
     }
 
-
+    @Deprecated
     private Handler<Void> makeHandler(CompletableFuture<Void> completer, Runnable runnable) {
         return ev -> service.runOnCurrentSession(this.session, freshSession -> {
             try {
@@ -73,6 +73,7 @@ public class UIProxy {
             }
         });
     }
+
 
     public static <T> CompletableFuture<T> makeCompletableFuture(Future<T> future) {
         return CompletableFuture.supplyAsync(() -> {

@@ -9,9 +9,8 @@ import java.util.logging.Logger;
 import com.github.mcollovati.vertx.vaadin.communication.SockJSPushHandler;
 import com.github.mcollovati.vertx.web.ExtendedSession;
 import com.github.mcollovati.vertx.web.sstore.ExtendedLocalSessionStore;
+import com.github.mcollovati.vertx.web.sstore.ExtendedSessionStore;
 import com.github.mcollovati.vertx.web.sstore.NearCacheSessionStore;
-import com.github.mcollovati.vertx.web.sstore.SessionExpirationNotifier;
-import com.github.mcollovati.vertx.web.sstore.SessionStoreAdapter;
 import com.vaadin.server.DefaultDeploymentConfiguration;
 import com.vaadin.server.ServiceException;
 import com.vaadin.server.WrappedSession;
@@ -21,6 +20,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxException;
+import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.eventbus.MessageProducer;
 import io.vertx.core.json.JsonObject;
@@ -32,22 +32,21 @@ import io.vertx.ext.web.handler.SessionHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
-import io.vertx.ext.web.sstore.ClusteredSessionStore;
-import io.vertx.ext.web.sstore.LocalSessionStore;
-import io.vertx.ext.web.sstore.SessionStore;
 
 import static io.vertx.ext.web.handler.SessionHandler.DEFAULT_SESSION_TIMEOUT;
 
 public class VertxVaadin {
 
+    private static final String VAADIN_SESSION_EXPIRED_ADDRESS = "vaadin.session.expired";
+
     private final VertxVaadinService service;
     private final JsonObject config;
     private final Vertx vertx;
     private final Router router;
-    private final SessionStore sessionStore;
+    private final ExtendedSessionStore sessionStore;
 
 
-    private VertxVaadin(Vertx vertx, Optional<SessionStore> sessionStore, JsonObject config) {
+    private VertxVaadin(Vertx vertx, Optional<ExtendedSessionStore> sessionStore, JsonObject config) {
         this.vertx = Objects.requireNonNull(vertx);
         this.config = Objects.requireNonNull(config);
         this.service = createVaadinService();
@@ -56,12 +55,26 @@ public class VertxVaadin {
         } catch (Exception ex) {
             throw new VertxException("Cannot initialize Vaadin service", ex);
         }
-        SessionStore adaptedSessionStore = SessionStoreAdapter.adapt(service, sessionStore.orElseGet(this::createSessionStore));
 
-        this.router = initRouter(adaptedSessionStore);
-        this.sessionStore = adaptedSessionStore;
+        //SessionStore adaptedSessionStore = SessionStoreAdapter.adapt(service, sessionStore.orElseGet(this::createSessionStore));
+        this.sessionStore = withSessionExpirationHandler(
+            this.service, sessionStore.orElseGet(this::createSessionStore)
+        );
+        configureSessionStore();
+        this.router = initRouter();
+    }
+
+    protected VertxVaadin(Vertx vertx, ExtendedSessionStore sessionStore, JsonObject config) {
+        this(vertx, Optional.of(sessionStore), config);
+    }
+
+    protected VertxVaadin(Vertx vertx, JsonObject config) {
+        this(vertx, Optional.empty(), config);
+    }
+
+    private void configureSessionStore() {
         Registration sessionInitListenerReg = this.service.addSessionInitListener(event -> {
-            MessageConsumer<String> consumer = SessionStoreAdapter.sessionExpiredHandler(vertx, msg ->
+            MessageConsumer<String> consumer = sessionExpiredHandler(vertx, msg ->
                 Optional.of(event.getSession().getSession())
                     .filter(session -> msg.body().equals(session.getId()))
                     .ifPresent(WrappedSession::invalidate));
@@ -69,14 +82,6 @@ public class VertxVaadin {
 
         });
         this.service.addServiceDestroyListener(event -> sessionInitListenerReg.remove());
-    }
-
-    protected VertxVaadin(Vertx vertx, SessionStore sessionStore, JsonObject config) {
-        this(vertx, Optional.of(sessionStore), config);
-    }
-
-    protected VertxVaadin(Vertx vertx, JsonObject config) {
-        this(vertx, Optional.empty(), config);
     }
 
     public Router router() {
@@ -142,16 +147,14 @@ public class VertxVaadin {
         return new VertxVaadinService(this, createDeploymentConfiguration());
     }
 
-    protected SessionStore createSessionStore() {
+    protected ExtendedSessionStore createSessionStore() {
         if (vertx.isClustered()) {
             return NearCacheSessionStore.create(vertx);
-            //return ClusteredSessionStore.create(vertx);
         }
-        //return LocalSessionStore.create(vertx);
         return ExtendedLocalSessionStore.create(vertx);
     }
 
-    private Router initRouter(SessionStore sessionStore) {
+    private Router initRouter() {
 
         String sessionCookieName = sessionCookieName();
         SessionHandler sessionHandler = SessionHandler.create(sessionStore)
@@ -217,7 +220,7 @@ public class VertxVaadin {
     }
 
     // TODO: change JsonObject to VaadinOptions interface
-    public static VertxVaadin create(Vertx vertx, SessionStore sessionStore, JsonObject config) {
+    public static VertxVaadin create(Vertx vertx, ExtendedSessionStore sessionStore, JsonObject config) {
         return new VertxVaadin(vertx, sessionStore, config);
     }
 
@@ -227,6 +230,29 @@ public class VertxVaadin {
 
     private static final Logger getLogger() {
         return Logger.getLogger(VertxVaadin.class.getName());
+    }
+
+
+    private static ExtendedSessionStore withSessionExpirationHandler(
+        VertxVaadinService service, ExtendedSessionStore store
+    ) {
+        MessageProducer<String> sessionExpiredProducer = sessionExpiredProducer(service);
+        store.expirationHandler(res -> {
+            if (res.succeeded()) {
+                sessionExpiredProducer.send(res.result());
+            } else {
+                res.cause().printStackTrace();
+            }
+        });
+        return store;
+    }
+
+    private static MessageProducer<String> sessionExpiredProducer(VertxVaadinService vaadinService) {
+        return vaadinService.getVertx().eventBus().sender(VAADIN_SESSION_EXPIRED_ADDRESS);
+    }
+
+    public static MessageConsumer<String> sessionExpiredHandler(Vertx vertx, Handler<Message<String>> handler) {
+        return vertx.eventBus().consumer(VAADIN_SESSION_EXPIRED_ADDRESS, handler);
     }
 
 }

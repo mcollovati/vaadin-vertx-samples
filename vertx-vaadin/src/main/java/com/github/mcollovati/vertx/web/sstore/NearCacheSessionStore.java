@@ -1,9 +1,8 @@
 package com.github.mcollovati.vertx.web.sstore;
 
 import io.vertx.core.Vertx;
-import io.vertx.ext.web.sstore.SessionStore;
 
-public interface NearCacheSessionStore extends SessionStore, SessionExpirationNotifier<NearCacheSessionStore> {
+public interface NearCacheSessionStore extends ExtendedSessionStore {
     /**
      * The default name used for the session map
      */

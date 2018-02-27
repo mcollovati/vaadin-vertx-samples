@@ -12,8 +12,7 @@ import io.vertx.ext.web.Session;
 import io.vertx.ext.web.sstore.LocalSessionStore;
 import io.vertx.ext.web.sstore.impl.LocalSessionStoreImpl;
 
-class ExtendedLocalSessionStoreImpl implements ExtendedLocalSessionStore,
-    SessionExpirationNotifier<ExtendedLocalSessionStore> {
+class ExtendedLocalSessionStoreImpl implements ExtendedLocalSessionStore {
 
 
     private final LocalMap<String, Session> localMap;
@@ -31,7 +30,7 @@ class ExtendedLocalSessionStoreImpl implements ExtendedLocalSessionStore,
     }
 
     @Override
-    public ExtendedLocalSessionStoreImpl expirationHandler(Handler<AsyncResult<String>> handler) {
+    public ExtendedLocalSessionStore expirationHandler(Handler<AsyncResult<String>> handler) {
         this.expirationHandler = Objects.requireNonNull(handler);
         return this;
     }
