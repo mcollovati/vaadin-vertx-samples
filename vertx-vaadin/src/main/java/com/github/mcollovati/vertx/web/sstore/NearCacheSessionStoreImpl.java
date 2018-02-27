@@ -2,7 +2,6 @@ package com.github.mcollovati.vertx.web.sstore;
 
 import java.util.HashSet;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 
 import io.vertx.core.AsyncResult;
@@ -20,7 +19,7 @@ class NearCacheSessionStoreImpl implements NearCacheSessionStore, Handler<Long> 
     private final long reaperInterval;
     private final LocalMap<String, Session> localMap;
     private final ClusteredSessionStore clusteredSessionStore;
-    private Handler<String> expirationHandler = x -> {};
+    private Handler<AsyncResult<String>> expirationHandler = x -> {};
     private long timerID = -1;
     private boolean closed;
 
@@ -33,7 +32,7 @@ class NearCacheSessionStoreImpl implements NearCacheSessionStore, Handler<Long> 
     }
 
     @Override
-    public NearCacheSessionStore expirationHandler(Handler<String> handler) {
+    public NearCacheSessionStore expirationHandler(Handler<AsyncResult<String>> handler) {
         this.expirationHandler = Objects.requireNonNull(handler);
         return this;
     }
@@ -143,7 +142,7 @@ class NearCacheSessionStoreImpl implements NearCacheSessionStore, Handler<Long> 
             }
         }
         for (String id : toRemove) {
-            delete(id, x -> expirationHandler.handle(id));
+            delete(id, res -> expirationHandler.handle(res.map(x -> id)));
         }
         if (!closed) {
             setTimer();

@@ -1,9 +1,10 @@
 package com.github.mcollovati.vertx.web.sstore;
 
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.sstore.SessionStore;
 
-public interface SessionExpirationNotifier<T extends SessionStore> {
+public interface SessionExpirationNotifier<T extends SessionStore>  {
 
     /**
      * Set an expiration handler on this {@link SessionStore}.
@@ -14,5 +15,5 @@ public interface SessionExpirationNotifier<T extends SessionStore> {
      * @param handler The session expiration handler
      * @return a reference to this, so the API can be used fluently
      */
-    T expirationHandler(Handler<String> handler);
+    T expirationHandler(Handler<AsyncResult<String>> handler);
 }

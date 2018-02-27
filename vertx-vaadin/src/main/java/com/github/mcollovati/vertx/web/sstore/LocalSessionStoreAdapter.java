@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.github.mcollovati.vertx.web.ExtendedSession;
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
@@ -23,7 +24,7 @@ public class LocalSessionStoreAdapter extends LocalSessionStoreImpl implements S
 
     //private final MessageProducer<String> sessionExpiredProducer;
     private LocalMap<String, Session> localMap;
-    private Handler<String> expirationHandler = id -> {};
+    private Handler<AsyncResult<String>> expirationHandler = id -> {};
 
 
     public LocalSessionStoreAdapter(Vertx vertx, String sessionMapName, long reaperInterval, MessageProducer<String> sessionExpiredProducer) {
@@ -43,14 +44,16 @@ public class LocalSessionStoreAdapter extends LocalSessionStoreImpl implements S
         super.handle(tid);
         localMap.keySet().forEach(copy::remove);
         Future f = Future.future();
-        copy.values().stream().map(Session::id)
+        copy.values().stream()
+            .map(Session::id)
+            .map(Future::succeededFuture)
             .forEach(expirationHandler::handle);
         //.forEach(sessionExpiredProducer::send);
         copy.clear();
     }
 
     @Override
-    public LocalSessionStoreAdapter expirationHandler(Handler<String> handler) {
+    public LocalSessionStoreAdapter expirationHandler(Handler<AsyncResult<String>> handler) {
         this.expirationHandler = Objects.requireNonNull(handler);
         return this;
     }
