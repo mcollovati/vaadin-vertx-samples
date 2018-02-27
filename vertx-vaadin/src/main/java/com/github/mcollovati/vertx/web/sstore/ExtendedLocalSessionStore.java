@@ -23,11 +23,11 @@
 package com.github.mcollovati.vertx.web.sstore;
 
 import io.vertx.core.Vertx;
-import io.vertx.ext.web.sstore.LocalSessionStore;
+
 
 /**
- * A session store that extends {@link LocalSessionStore} with support
- * for expiration handler
+ * A session store that extends {@link io.vertx.ext.web.sstore.LocalSessionStore}
+ * with support for expiration handler
  */
 public interface ExtendedLocalSessionStore extends ExtendedSessionStore {
 
