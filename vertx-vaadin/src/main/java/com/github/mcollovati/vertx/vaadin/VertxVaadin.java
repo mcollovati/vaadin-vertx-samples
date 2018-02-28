@@ -25,6 +25,7 @@ package com.github.mcollovati.vertx.vaadin;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -95,12 +96,18 @@ public class VertxVaadin {
     }
 
     private void configureSessionStore() {
-        Registration sessionInitListenerReg = this.service.addSessionInitListener(event -> {
+        final Registration sessionInitListenerReg = this.service.addSessionInitListener(event -> {
             MessageConsumer<String> consumer = sessionExpiredHandler(vertx, msg ->
                 Optional.of(event.getSession().getSession())
                     .filter(session -> msg.body().equals(session.getId()))
                     .ifPresent(WrappedSession::invalidate));
-            event.getService().addSessionDestroyListener(ev2 -> consumer.unregister());
+            AtomicReference<Registration> sessionDestroyListenerUnregister = new AtomicReference<>();
+            sessionDestroyListenerUnregister.set(
+                event.getService().addSessionDestroyListener(ev2 -> {
+                    consumer.unregister();
+                    sessionDestroyListenerUnregister.get().remove();
+                })
+            );
 
         });
         this.service.addServiceDestroyListener(event -> sessionInitListenerReg.remove());
