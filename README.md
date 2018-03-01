@@ -15,4 +15,7 @@ More details in [vertx-vaadin](vertx-vaadin) submodule.
 Sample project containing some web Vaadin UIs deployed as vert.x verticles and
 instructions on how to run them. 
 
+## example-app
+
+A sample Vaadin application that runs on Vertx.
 
