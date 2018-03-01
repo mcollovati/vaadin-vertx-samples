@@ -23,14 +23,10 @@
 package com.github.mcollovati.vertx.vaadin;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import com.vaadin.server.VaadinSession;
 import com.vaadin.ui.UI;
-import com.vaadin.ui.UIDetachedException;
-import io.vertx.core.Handler;
 
 public class UIProxy {
 
@@ -44,28 +40,21 @@ public class UIProxy {
         this.session = ui.getSession();
     }
 
-    public Future<Void> runLater(Runnable runnable) {
-        return runLater(runnable, 1, TimeUnit.MILLISECONDS);
+
+    public Future<Void> runLater(UIRunnable task) {
+        return schedule(task);
     }
 
-    public Future<Void> runLater(Runnable runnable, long delay, TimeUnit unit) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        Handler<Void> handler = makeHandler(future, runnable);
-        if (delay <= 0) {
-            service.getVertx().runOnContext(handler);
-        } else {
-            service.getVertx().setTimer(unit.toMillis(delay), id -> handler.handle(null));
-        }
-        return future;
+    public <T> Future<T> runLater(UITask<T> task) {
+        return schedule(task);
     }
 
-    public Future<Void> runLater2(Runnable runnable) {
-        CompletableFuture<Void> f = new CompletableFuture<>();
+    private <T> Future<T> schedule(UITask<T> task) {
+        CompletableFuture<T> f = new CompletableFuture<>();
         service.getVertx().createSharedWorkerExecutor("vaadin.background.worker")
             .executeBlocking(completer -> {
                 try {
-                    runnable.run();
-                    completer.complete();
+                    completer.complete(task.execute(ui));
                 } catch (Exception ex) {
                     completer.fail(ex);
                 }
@@ -79,31 +68,21 @@ public class UIProxy {
         return f;
     }
 
-    @Deprecated
-    private Handler<Void> makeHandler(CompletableFuture<Void> completer, Runnable runnable) {
-        return ev -> service.runOnCurrentSession(this.session, freshSession -> {
-            try {
-                UI freshUI = freshSession.getUIById(ui.getUIId());
-                if (freshUI != null) {
-                    freshUI.access(runnable).get();
-                    completer.complete(null);
-                } else {
-                    throw new UIDetachedException("Not found UI with id " + ui.getUIId());
-                }
-            } catch (Exception ex) {
-                completer.completeExceptionally(ex);
-            }
-        });
+    @FunctionalInterface
+    public interface UITask<T> {
+        T execute(UI ui) throws Exception;
     }
 
+    @FunctionalInterface
+    public interface UIRunnable extends UITask<Void> {
 
-    public static <T> CompletableFuture<T> makeCompletableFuture(Future<T> future) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return future.get();
-            } catch (InterruptedException | ExecutionException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        void run() throws Exception;
+
+        @Override
+        default Void execute(UI ui) throws Exception {
+            run();
+            return null;
+        }
     }
+
 }

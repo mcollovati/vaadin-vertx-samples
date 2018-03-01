@@ -26,11 +26,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.github.mcollovati.vertx.vaadin.communication.SockJSPushHandler;
-import com.github.mcollovati.vertx.web.ExtendedSession;
 import com.github.mcollovati.vertx.web.sstore.ExtendedLocalSessionStore;
 import com.github.mcollovati.vertx.web.sstore.ExtendedSessionStore;
 import com.github.mcollovati.vertx.web.sstore.NearCacheSessionStore;
@@ -38,8 +36,6 @@ import com.vaadin.server.DefaultDeploymentConfiguration;
 import com.vaadin.server.ServiceException;
 import com.vaadin.server.WrappedSession;
 import com.vaadin.shared.Registration;
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxException;
@@ -48,7 +44,6 @@ import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.eventbus.MessageProducer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
-import io.vertx.ext.web.Session;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CookieHandler;
 import io.vertx.ext.web.handler.SessionHandler;
@@ -127,41 +122,6 @@ public class VertxVaadin {
 
     public String serviceName() {
         return config.getString("serviceName", getClass().getName() + ".service");
-    }
-
-
-    public void runWithSession(String sessionId, Handler<AsyncResult<ExtendedSession>> handler) {
-        sessionStore.get(sessionId, res -> {
-            if (res.succeeded() && res.result() != null) {
-                runAndCommitSessionChanges(res.result(), handler)
-                    .handle(Future.succeededFuture(ExtendedSession.adapt(res.result())));
-            } else {
-                handler.handle(Future.failedFuture("Session does not exists: " + sessionId));
-            }
-        });
-    }
-
-    public final <T> Handler<T> runAndCommitSessionChanges(Session session, Handler<T> handler) {
-        return obj -> {
-            try {
-                handler.handle(obj);
-            } finally {
-                if (!session.isDestroyed()) {
-                    session.setAccessed();
-                    sessionStore.put(session, res -> {
-                        if (res.failed()) {
-                            getLogger().log(Level.SEVERE, "Failed to store session", res.cause());
-                        }
-                    });
-                } else {
-                    sessionStore.delete(session.id(), res -> {
-                        if (res.failed()) {
-                            getLogger().log(Level.SEVERE, "Failed to delete session", res.cause());
-                        }
-                    });
-                }
-            }
-        };
     }
 
 

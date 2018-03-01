@@ -1,5 +1,7 @@
 package com.github.mcollovati.vaadin.exampleapp.samples.push;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -8,6 +10,7 @@ import com.github.mcollovati.vertx.vaadin.VertxVaadinService;
 import com.vaadin.navigator.View;
 import com.vaadin.ui.Alignment;
 import com.vaadin.ui.Button;
+import com.vaadin.ui.HorizontalLayout;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.Panel;
 import com.vaadin.ui.UI;
@@ -32,10 +35,13 @@ public class PushView extends VerticalLayout implements View {
 
         counterLabel.setCaption("Messages pushed from server");
         counterLabel.setValue(Integer.toString(messages.get()));
-        addComponent(counterLabel);
 
-        Button button = new Button("Start background thread", this::startBackgroundThread);
-        addComponent(button);
+        addComponent(new HorizontalLayout(
+            new Button("Start background thread", this::startBackgroundThread),
+            new Button("Start background thread (worker)", this::startBackgroundWithWorker),
+            counterLabel
+        ));
+
 
         messagesLayout = new VerticalLayout();
         messagesLayout.setDefaultComponentAlignment(Alignment.TOP_CENTER);
@@ -48,21 +54,26 @@ public class PushView extends VerticalLayout implements View {
     }
 
 
-    private void startBackgroundThread2(Button.ClickEvent event) {
+    private void startBackgroundWithWorker(Button.ClickEvent event) {
         int sleep = ThreadLocalRandom.current().nextInt(5, 20);
-        Vertx vertx = ((VertxVaadinService) getSession().getService()).getVertx();
-
-        new UIProxy(getUI()).runLater2(() -> {
+        UI ui = getUI();
+        new UIProxy(getUI()).runLater(() -> {
             int current = counter.incrementAndGet();
-            getUI().access(() -> {
-                addComponent(new Label("Starting background thread " + current + ", please wait " + sleep + " seconds"));
+            ui.access(() -> {
+                updateCounter();
+                messagesLayout.addComponent(
+                    new Label(formatStartMessage(sleep, current))
+                );
             });
             try {
                 Thread.sleep(sleep * 1000);
             } catch (InterruptedException e) {
             }
-            getUI().access(() -> {
-                addComponent(new Label("background thread " + current + "completed after " + sleep + " seconds"));
+            messages.incrementAndGet();
+            ui.access(() -> {
+                messagesLayout.addComponent(
+                    new Label(formatEndMessage(sleep, current))
+                );
                 updateCounter();
             });
 
@@ -76,21 +87,45 @@ public class PushView extends VerticalLayout implements View {
         vertx.setTimer(1, i -> {
             int current = counter.incrementAndGet();
             ui.access(() -> {
+                updateCounter();
                 messagesLayout.addComponent(
-                    new Label("Starting background thread " + current + ", please wait " + sleep + " seconds")
+                    new Label(formatStartMessage(sleep, current))
                 );
             });
             vertx.setTimer(sleep * 1000, x -> {
+                messages.incrementAndGet();
                 ui.access(() -> {
                     messagesLayout.addComponent(
-                        new Label("background thread " + current + "completed after " + sleep + " seconds"));
+                        new Label(formatEndMessage(sleep, current)));
                     updateCounter();
                 });
             });
         });
     }
 
+    private String formatStartMessage(int sleep, int current) {
+        String endTime = LocalDateTime.now().atOffset(ZoneOffset.ofTotalSeconds(
+            UI.getCurrent().getPage().getWebBrowser().getTimezoneOffset() / 1000
+        )).plusSeconds(sleep).toString();
+        return String.format(
+            "Starting background thread %d, please wait %d seconds until around %s",
+            current, sleep, endTime
+        );
+    }
+
+    private String formatEndMessage(int sleep, int current) {
+        String endTime = LocalDateTime.now().atOffset(ZoneOffset.ofTotalSeconds(
+            UI.getCurrent().getPage().getWebBrowser().getTimezoneOffset() / 1000
+        )).toString();
+        return String.format(
+            "Background thread %d, completed after %d seconds at %s",
+            current, sleep, endTime
+        );
+    }
+
     private void updateCounter() {
-        counterLabel.setValue(Integer.toString(messages.incrementAndGet()));
+        counterLabel.setValue(String.format("%d of %d",
+            messages.get(), counter.get()
+        ));
     }
 }
