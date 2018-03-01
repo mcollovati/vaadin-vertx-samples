@@ -19,4 +19,5 @@ All [Servlet Configuration Parameter](https://vaadin.com/docs/-/part/framework/a
 }
 ``` 
 
+Vertx-Vaadin supports PUSH using a custom implementation based on SockJS that replaces the atmosphere stack on client and server side; for this reason widgetset compilation is needed for projects using vertx-vaadin 
  
