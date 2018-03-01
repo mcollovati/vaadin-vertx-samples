@@ -39,7 +39,6 @@ import java.util.logging.Logger;
 import com.github.mcollovati.vertx.http.HttpServerResponseWrapper;
 import com.github.mcollovati.vertx.vaadin.VertxVaadinRequest;
 import com.github.mcollovati.vertx.vaadin.VertxVaadinService;
-import com.github.mcollovati.vertx.web.ExtendedSession;
 import com.vaadin.server.ErrorEvent;
 import com.vaadin.server.ErrorHandler;
 import com.vaadin.server.LegacyCommunicationManager;
@@ -58,7 +57,6 @@ import com.vaadin.shared.communication.PushMode;
 import com.vaadin.ui.UI;
 import com.vaadin.util.CurrentInstance;
 import elemental.json.JsonException;
-import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
@@ -187,53 +185,6 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         // Send an ACK
         socket.send("ACK-CONN|" + uuid);
 
-        /*
-        service.getVertxVaadin().runAndCommitSessionChanges(sockJSSocket.webSession(),
-            unused -> callWithUi(new PushEvent(socket, routingContext, null), establishCallback)
-        ).handle(null);
-        */
-
-        /*
-        sockJSSocket.handler(
-            service.getVertxVaadin().runAndCommitSessionChanges(
-                sockJSSocket.webSession(), data -> onMessage(new PushEvent(socket, routingContext, data))
-            ));
-        sockJSSocket.endHandler(
-            service.getVertxVaadin().runAndCommitSessionChanges(
-                sockJSSocket.webSession(), x -> onDisconnect(new PushEvent(socket, routingContext, null))
-            ));
-        sockJSSocket.exceptionHandler(
-            service.getVertxVaadin().runAndCommitSessionChanges(
-                sockJSSocket.webSession(), t -> onError(new PushEvent(socket, routingContext, null), t)
-            ));
-            */
-
-        /*
-        sockJSSocket.handler(msg -> {
-            prepareRoutingContext(sockJSSocket.webSession(), routingContext)
-                .map(rc -> new PushEvent(socket, rc, msg))
-                .setHandler(
-                    service.getVertxVaadin().runAndCommitSessionChanges(routingContext.session(),
-                        ev -> onMessage(ev.result())
-                    ));
-        });
-        sockJSSocket.endHandler(unused -> {
-            prepareRoutingContext(sockJSSocket.webSession(), routingContext)
-                .map(rc -> new PushEvent(socket, rc, null))
-                .setHandler(
-                    service.getVertxVaadin().runAndCommitSessionChanges(routingContext.session(),
-                        ev -> onDisconnect(ev.result())
-                    ));
-        });
-        sockJSSocket.exceptionHandler(t -> {
-            prepareRoutingContext(sockJSSocket.webSession(), routingContext)
-                .map(rc -> new PushEvent(socket, rc, null))
-                .setHandler(
-                    service.getVertxVaadin().runAndCommitSessionChanges(routingContext.session(),
-                        ev -> onError(ev.result(), t)
-                    ));
-        });
-        */
         sessionHandler.handle(new SockJSRoutingContext(routingContext, rc ->
             callWithUi(new PushEvent(socket, routingContext, null), establishCallback)
         ));
@@ -241,9 +192,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
 
     private void initSocket(SockJSSocket sockJSSocket, RoutingContext routingContext, PushSocket socket) {
         sockJSSocket.handler(data -> sessionHandler.handle(
-            new SockJSRoutingContext(routingContext, rc -> {
-                onMessage(new PushEvent(socket, rc, data));
-            })
+            new SockJSRoutingContext(routingContext, rc -> onMessage(new PushEvent(socket, rc, data)))
         ));
         sockJSSocket.endHandler(unused -> sessionHandler.handle(
             new SockJSRoutingContext(routingContext, rc -> onDisconnect(new PushEvent(socket, rc, null)))
@@ -252,35 +201,6 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
             new SockJSRoutingContext(routingContext, rc -> onError(new PushEvent(socket, routingContext, null), t))
         ));
 
-    }
-
-    private Future<RoutingContext> prepareRoutingContext(Session session, RoutingContext routingContext) {
-        Future<ExtendedSession> f1 = Future.future();
-        service.getVertxVaadin().runWithSession(session.id(), res -> {
-            if (res.succeeded()) {
-                f1.complete(res.result());
-            } else {
-                f1.fail(res.cause());
-            }
-        });
-        return f1.map(freshSession -> wrapRoutingContext(routingContext, freshSession));
-    }
-
-    private RoutingContext wrapRoutingContext(RoutingContext source, ExtendedSession session) {
-        return new RoutingContextDecorator(source.currentRoute(), source) {
-
-            private Session session;
-
-            @Override
-            public Session session() {
-                return this.session;
-            }
-
-            @Override
-            public void setSession(Session session) {
-                this.session = session;
-            }
-        };
     }
 
     private void onDisconnect(PushEvent ev) {
@@ -420,7 +340,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         // things.
 
         VaadinRequest vaadinRequest = new VertxVaadinRequest(service, event.routingContext);
-        VaadinSession session = null;
+        VaadinSession session;
 
         try {
             session = service.findVaadinSession(vaadinRequest);
@@ -439,7 +359,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
             return;
         }
 
-        UI ui = null;
+        UI ui;
         session.lock();
         try {
             VaadinSession.setCurrent(session);
@@ -546,7 +466,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         }
     }
 
-    private static final Logger getLogger() {
+    private static Logger getLogger() {
         return Logger.getLogger(SockJSPushHandler.class.getName());
     }
 
@@ -586,7 +506,7 @@ public class SockJSPushHandler implements Handler<RoutingContext> {
         private final String socketUUID;
         private final String remoteAddress;
 
-        public PushSocketImpl(SockJSSocket socket) {
+        PushSocketImpl(SockJSSocket socket) {
             this.socketUUID = socket.writeHandlerID();
             this.remoteAddress = socket.remoteAddress().toString();
         }
@@ -673,7 +593,7 @@ class SockJSRoutingContext extends RoutingContextDecorator {
     private final Handler<RoutingContext> action;
     private Session session;
 
-    public SockJSRoutingContext(RoutingContext source, Handler<RoutingContext> action) {
+    SockJSRoutingContext(RoutingContext source, Handler<RoutingContext> action) {
         super(source.currentRoute(), source);
         this.action = action;
     }

@@ -28,7 +28,6 @@ import java.io.InputStream;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 
 import com.vaadin.server.DefaultDeploymentConfiguration;
 import com.vaadin.server.RequestHandler;
@@ -39,7 +38,6 @@ import com.vaadin.server.VaadinService;
 import com.vaadin.server.VaadinServlet;
 import com.vaadin.server.VaadinServletService;
 import com.vaadin.server.VaadinSession;
-import com.vaadin.server.WrappedSession;
 import com.vaadin.server.communication.ServletUIInitHandler;
 import com.vaadin.ui.UI;
 import com.vaadin.ui.themes.ValoTheme;
@@ -67,25 +65,6 @@ public class VertxVaadinService extends VaadinService {
         return vertxVaadin.vertx();
     }
 
-
-    public VertxVaadin getVertxVaadin() {
-        return vertxVaadin;
-    }
-
-
-    void runOnCurrentSession(VaadinSession staleSession, Consumer<VaadinSession> consumer) {
-        if (staleSession != null) {
-            vertxVaadin.runWithSession(
-                staleSession.getSession().getId(),
-                // TODO: handle failure
-                sess -> consumer.accept(readFromHttpSession(new VertxWrappedSession(sess.result())))
-            );
-        } else {
-            consumer.accept(null);
-        }
-    }
-
-
     @Override
     protected List<RequestHandler> createRequestHandlers()
         throws ServiceException {
@@ -93,11 +72,6 @@ public class VertxVaadinService extends VaadinService {
         handlers.add(0, new VertxBootstrapHandler());
         handlers.add(new ServletUIInitHandler());
         return handlers;
-    }
-
-    @Override
-    public VaadinSession loadSession(WrappedSession wrappedSession) {
-        return super.loadSession(wrappedSession);
     }
 
     @Override
