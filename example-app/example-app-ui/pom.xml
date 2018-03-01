@@ -151,11 +151,35 @@
 
     <profiles>
         <profile>
-            <id>vaadin-push</id>
+            <id>ha-hazelcast</id>
             <dependencies>
                 <dependency>
-                    <groupId>com.vaadin</groupId>
-                    <artifactId>vaadin-push</artifactId>
+                    <groupId>io.vertx</groupId>
+                    <artifactId>vertx-hazelcast</artifactId>
+                    <version>3.5.1</version>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>ha-infinispan</id>
+            <dependencies>
+                <dependency>
+                    <groupId>io.vertx</groupId>
+                    <artifactId>vertx-infinispan</artifactId>
+                    <version>3.5.1</version>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>ha-ignite</id>
+            <dependencies>
+                <dependency>
+                    <groupId>io.vertx</groupId>
+                    <artifactId>vertx-ignite</artifactId>
+                    <version>3.5.1</version>
+                    <scope>runtime</scope>
                 </dependency>
             </dependencies>
         </profile>
