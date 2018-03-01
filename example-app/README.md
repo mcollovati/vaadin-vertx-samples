@@ -1,7 +1,7 @@
-sockjs
+example app
 ==============
 
-Template for a full-blown Vaadin application that only requires a Servlet 3.0 container to run (no other JEE dependencies).
+This is a sample Vaadin application that runs on Vertx.
 
 
 Project Structure
@@ -10,11 +10,9 @@ Project Structure
 The project consists of the following three modules:
 
 - parent project: common metadata and configuration
-- sockjs-widgetset: widgetset, custom client side code and dependencies to widget add-ons
-- sockjs-ui: main application module, development time
-- sockjs-production: module that produces a production mode WAR for deployment
-
-The production mode module recompiles the widgetset (obfuscated, not draft), activates production mode for Vaadin with a context parameter in web.xml and contains a precompiled theme. The ui module WAR contains an unobfuscated widgetset, and is meant to be used at development time only.
+- example-app-widgetset: widgetset, custom client side code and dependencies to widget add-ons
+- example-app-ui: main application module, development time
+- exmple-app-backed: simulation of a backed service
 
 Workflow
 ========
@@ -38,11 +36,13 @@ Other basic workflow steps:
 - debugging client side code
   - run "mvn vaadin:run-codeserver" in widgetset module
   - activate Super Dev Mode in the debug window of the application
-- creating a production mode war
-  - run "mvn -Pproduction package" in the production mode module or in the parent module
-- testing the production mode war
-  - run "mvn -Pproduction jetty:run-war" in the production mode module
-
+- clustering, HA and fail over
+  - run "mvn package -Pha-hazelcast" in ui module
+  - in a terminal run run "java -jar target/example-app-ui-1.0-SNAPSHOT-fat.jar -ha"
+  - in other terminals run run "java -jar target/example-app-ui-1.0-SNAPSHOT-fat.jar bare"
+  - open http://localhost:8080/
+  - navigate application and after a while kill the first terminal (`kill -9`)
+  - after a few seconds the verticle will be redeployed on another node and application will automatically reconnect   
 
 Developing a theme using the runtime compiler
 -------------------------
