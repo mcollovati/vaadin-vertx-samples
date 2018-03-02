@@ -76,7 +76,7 @@
                                         <!--
                                         <Main-Verticle>com.github.mcollovati.vertx.vaadin.sample.PushTestUI$MyVerticle</Main-Verticle>
                                         -->
-                                        <Main-Verticle>com.github.mcollovati.vertx.vaadin.VaadinVerticle</Main-Verticle>
+                                        <Main-Verticle>com.github.mcollovati.vertx.vaadin.sample.SimpleVerticle</Main-Verticle>
                                     </manifestEntries>
                                 </transformer>
                             </transformers>
