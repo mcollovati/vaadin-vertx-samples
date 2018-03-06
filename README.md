@@ -1,9 +1,11 @@
 # Experiments with Vert.x and Vaadin
 
-This repository contains an experimental attempt to run [Vaadin](http://vaadin.com/) 
-applications on [Vert.x](http://vertx.io/).
+This repository contains examples on how to run [Vaadin](http://vaadin.com/) 
+applications on top of [Vert.x](http://vertx.io/) through [vertx-vaadin](https://github.com/mcollovati/vertx-vaadin) adapter.
 
-## vertx-vaadin
+## [DEPRECATED] vertx-vaadin
+
+### ATTENTION: vertx-vaadin has moved to its own repository
 
 Vertx-vaadin projects provides a vert.x verticle that starts a http server and initialize `VertxVaadinService`,
 a custom implementation of VaadinService.

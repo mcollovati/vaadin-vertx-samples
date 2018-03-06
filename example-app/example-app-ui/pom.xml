@@ -31,8 +31,7 @@
         </dependency>
         <dependency>
             <groupId>com.github.mcollovati.vertx</groupId>
-            <artifactId>vertx-vaadin</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <artifactId>vertx-vaadin8</artifactId>
         </dependency>
         <dependency>
             <groupId>com.vaadin</groupId>

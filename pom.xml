@@ -11,9 +11,7 @@
     <url>https://github.com/mcollovati/vaadin-vertx-samples</url>
 
     <modules>
-        <module>vertx-vaadin</module>
         <module>sample</module>
-        <!-- <module>dashboard-demo</module> -->
         <module>example-app</module>
     </modules>
 </project>
