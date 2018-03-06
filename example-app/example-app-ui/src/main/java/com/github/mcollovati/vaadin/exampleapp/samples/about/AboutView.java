@@ -9,6 +9,7 @@ import com.vaadin.ui.Alignment;
 import com.vaadin.ui.CustomLayout;
 import com.vaadin.ui.Label;
 import com.vaadin.ui.VerticalLayout;
+import io.vertx.core.impl.launcher.commands.VersionCommand;
 
 public class AboutView extends VerticalLayout implements View {
 
@@ -23,7 +24,9 @@ public class AboutView extends VerticalLayout implements View {
         aboutContent.addComponent(
                 new Label(VaadinIcons.INFO_CIRCLE.getHtml()
                         + " This application is using Vaadin "
-                        + Version.getFullVersion(), ContentMode.HTML), "info");
+                        + Version.getFullVersion()
+                        + "on Vert.x "
+                        + VersionCommand.getVersion(), ContentMode.HTML), "info");
 
         setSizeFull();
         setMargin(false);
