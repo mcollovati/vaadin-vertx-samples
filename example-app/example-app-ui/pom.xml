@@ -12,6 +12,10 @@
     <name>example-app-ui</name>
     <packaging>jar</packaging>
 
+    <properties>
+        <vertx.version>3.5.1</vertx.version>
+    </properties>
+
     <dependencies>
         <!-- Versions for these are configured in the parent POM -->
         <dependency>
@@ -117,67 +121,68 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>2.3</version>
+                <groupId>io.fabric8</groupId>
+                <artifactId>vertx-maven-plugin</artifactId>
+                <version>1.0.9</version>
                 <executions>
                     <execution>
-                        <phase>package</phase>
+                        <id>vmp-init-package</id>
                         <goals>
-                            <goal>shade</goal>
+                            <goal>initialize</goal>
+                            <goal>package</goal>
                         </goals>
-                        <configuration>
-                            <transformers>
-                                <transformer
-                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <manifestEntries>
-                                        <Main-Class>io.vertx.core.Launcher</Main-Class>
-                                        <Main-Verticle>com.github.mcollovati.vaadin.exampleapp.MyUI$ExampleUIVerticle
-                                        </Main-Verticle>
-                                    </manifestEntries>
-                                </transformer>
-                            </transformers>
-                            <artifactSet/>
-                            <outputFile>${project.build.directory}/${project.artifactId}-${project.version}-fat.jar
-                            </outputFile>
-                        </configuration>
                     </execution>
                 </executions>
+                <configuration>
+                    <redeploy>true</redeploy>
+                    <classifier>fat</classifier>
+                    <attach>true</attach>
+                    <workDirectory>${project.build.directory}</workDirectory>
+                    <verticle>com.github.mcollovati.vaadin.exampleapp.MyUI$ExampleUIVerticle</verticle>
+                </configuration>
             </plugin>
-
         </plugins>
     </build>
 
     <profiles>
         <profile>
             <id>ha-hazelcast</id>
+            <properties>
+                <vertx.runArgs>-ha</vertx.runArgs>
+            </properties>
             <dependencies>
                 <dependency>
                     <groupId>io.vertx</groupId>
                     <artifactId>vertx-hazelcast</artifactId>
-                    <version>3.5.1</version>
+                    <version>${vertx.version}</version>
                     <scope>runtime</scope>
                 </dependency>
             </dependencies>
         </profile>
         <profile>
             <id>ha-infinispan</id>
+            <properties>
+                <vertx.runArgs>-ha</vertx.runArgs>
+            </properties>
             <dependencies>
                 <dependency>
                     <groupId>io.vertx</groupId>
                     <artifactId>vertx-infinispan</artifactId>
-                    <version>3.5.1</version>
+                    <version>${vertx.version}</version>
                     <scope>runtime</scope>
                 </dependency>
             </dependencies>
         </profile>
         <profile>
             <id>ha-ignite</id>
+            <properties>
+                <vertx.runArgs>-ha</vertx.runArgs>
+            </properties>
             <dependencies>
                 <dependency>
                     <groupId>io.vertx</groupId>
                     <artifactId>vertx-ignite</artifactId>
-                    <version>3.5.1</version>
+                    <version>${vertx.version}</version>
                     <scope>runtime</scope>
                 </dependency>
             </dependencies>

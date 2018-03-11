@@ -27,7 +27,7 @@ Other basic workflow steps:
 - developing the application
   - edit code in the ui module
   - run "mvn package" in ui module
-  - run "java -jar target/example-app-ui-1.0-SNAPSHOT-fat.jar"
+  - run "mvn vertx:run" or "java -jar target/example-app-ui-1.0-SNAPSHOT-fat.jar"
   - open http://localhost:8080/
 - client side changes or add-ons
   - edit code/POM in widgetset module
