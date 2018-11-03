@@ -10,9 +10,9 @@
     <name>example-app-parent</name>
 
     <properties>
-        <vaadin.version>8.3.1</vaadin.version>
-        <vaadin.plugin.version>8.3.1</vaadin.plugin.version>
-        <vertx-vaadin8.version>0.3.0</vertx-vaadin8.version>
+        <vaadin.version>8.5.2</vaadin.version>
+        <vaadin.plugin.version>${vaadin.version}</vaadin.plugin.version>
+        <vertx-vaadin8.version>1.0.0</vertx-vaadin8.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>

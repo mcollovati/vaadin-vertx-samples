@@ -25,8 +25,20 @@
         </dependency>
         <dependency>
             <groupId>com.github.mcollovati.vertx</groupId>
+            <artifactId>vaadin8-sockjs</artifactId>
+            <version>${vertx-vaadin8.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.mcollovati.vertx</groupId>
             <artifactId>vertx-vaadin8</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.mcollovati.vertx</groupId>
+            <artifactId>vaadin8-sockjs</artifactId>
+            <version>${vertx-vaadin8.version}</version>
+            <scope>provided</scope>
+            <classifier>sources</classifier>
         </dependency>
     </dependencies>
 

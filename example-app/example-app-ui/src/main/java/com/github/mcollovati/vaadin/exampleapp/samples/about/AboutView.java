@@ -1,5 +1,6 @@
 package com.github.mcollovati.vaadin.exampleapp.samples.about;
 
+import com.github.mcollovati.vertx.vaadin.VertxVaadin;
 import com.vaadin.icons.VaadinIcons;
 import com.vaadin.navigator.View;
 import com.vaadin.navigator.ViewChangeListener.ViewChangeEvent;
@@ -22,11 +23,15 @@ public class AboutView extends VerticalLayout implements View {
         // you can add Vaadin components in predefined slots in the custom
         // layout
         aboutContent.addComponent(
-                new Label(VaadinIcons.INFO_CIRCLE.getHtml()
-                        + " This application is using Vaadin "
-                        + Version.getFullVersion()
-                        + "on Vert.x "
-                        + VersionCommand.getVersion(), ContentMode.HTML), "info");
+            new Label(VaadinIcons.INFO_CIRCLE.getHtml()
+                + " This application is running Vaadin "
+                + Version.getFullVersion()
+                + " on Vert.x "
+                + VersionCommand.getVersion()
+                + "<br/>using Vertx-Vaadin "
+                + VertxVaadin.getVersion(),
+                ContentMode.HTML), "info"
+        );
 
         setSizeFull();
         setMargin(false);

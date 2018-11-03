@@ -1,15 +1,12 @@
 package com.github.mcollovati.vaadin.exampleapp;
 
-import java.util.concurrent.TimeUnit;
-
 import com.github.mcollovati.vaadin.exampleapp.samples.MainScreen;
 import com.github.mcollovati.vaadin.exampleapp.samples.authentication.AccessControl;
 import com.github.mcollovati.vaadin.exampleapp.samples.authentication.BasicAccessControl;
 import com.github.mcollovati.vaadin.exampleapp.samples.authentication.LoginScreen;
 import com.github.mcollovati.vaadin.exampleapp.samples.authentication.LoginScreen.LoginListener;
-import com.github.mcollovati.vertx.vaadin.UIProxy;
 import com.github.mcollovati.vertx.vaadin.VaadinVerticle;
-import com.github.mcollovati.vertx.vaadin.communication.SockJSPushConnection;
+import com.github.mcollovati.vertx.vaadin.sockjs.communication.SockJSPushConnection;
 import com.vaadin.annotations.Push;
 import com.vaadin.annotations.Theme;
 import com.vaadin.annotations.VaadinServletConfiguration;
