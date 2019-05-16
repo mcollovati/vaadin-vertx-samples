@@ -33,7 +33,7 @@
         <dependency>
             <groupId>com.github.mcollovati.vertx</groupId>
             <artifactId>vertx-vaadin-flow</artifactId>
-            <version>0.2.0</version>
+            <version>${vertx-vaadin.version}</version>
         </dependency>
 
         <!-- Bean validation implementation -->
