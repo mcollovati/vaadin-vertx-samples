@@ -23,6 +23,8 @@ public class Product implements Serializable {
     @NotNull
     private Availability availability = Availability.COMING;
 
+    private String image;
+
     public int getId() {
         return id;
     }
@@ -75,4 +77,11 @@ public class Product implements Serializable {
         return getId() == -1;
     }
 
+    public String getImage() {
+        return image;
+    }
+
+    public void setImage(String image) {
+        this.image = image;
+    }
 }
