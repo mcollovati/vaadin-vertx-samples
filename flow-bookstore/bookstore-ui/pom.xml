@@ -145,8 +145,41 @@
                                     <goal>copy-production-files</goal>
                                     <goal>package-for-production</goal>
                                 </goals>
+                                <configuration>
+                                    <transpileOutputDirectory>${project.build.outputDirectory}/META-INF/resources</transpileOutputDirectory>
+                                </configuration>
                             </execution>
                         </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>io.reactiverse</groupId>
+                        <artifactId>vertx-maven-plugin</artifactId>
+                        <version>1.0.15</version>
+                        <executions>
+                            <execution>
+                                <id>vmp-init-package</id>
+                                <phase>none</phase>
+                            </execution>
+                            <execution>
+                                <id>vmp-package</id>
+                                <goals>
+                                    <goal>package</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <skip>false</skip>
+                            <redeploy>false</redeploy>
+                            <classifier>fat</classifier>
+                            <attach>true</attach>
+                            <workDirectory>${project.build.directory}</workDirectory>
+                            <verticle>com.github.mcollovati.vertxvaadin.flowdemo.UIVerticle</verticle>
+                            <!-- <webRoot>${project.build.outputDirectory}/META-INF/resources/webjars</webRoot> -->
+                            <webRoot>${project.build.directory}/${project.build.finalName}</webRoot>
+                            <stripWebJarVersion>false</stripWebJarVersion>
+
+
+                        </configuration>
                     </plugin>
 
                     <plugin>
