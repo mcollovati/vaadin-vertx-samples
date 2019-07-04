@@ -55,13 +55,41 @@
                     <groupId>com.vaadin</groupId>
                     <artifactId>flow-client</artifactId>
                 </exclusion>
+                <!-- Webjars are only needed when running in Vaadin 13 compatibility mode -->
+                 <exclusion>
+                     <groupId>com.vaadin.webjar</groupId>
+                     <artifactId>*</artifactId>
+                 </exclusion>
+                 <exclusion>
+                     <groupId>org.webjars.bowergithub.insites</groupId>
+                     <artifactId>*</artifactId>
+                 </exclusion>
+                 <exclusion>
+                     <groupId>org.webjars.bowergithub.polymer</groupId>
+                     <artifactId>*</artifactId>
+                 </exclusion>
+                 <exclusion>
+                     <groupId>org.webjars.bowergithub.polymerelements</groupId>
+                     <artifactId>*</artifactId>
+                 </exclusion>
+                 <exclusion>
+                     <groupId>org.webjars.bowergithub.vaadin</groupId>
+                     <artifactId>*</artifactId>
+                 </exclusion>
+                 <exclusion>
+                     <groupId>org.webjars.bowergithub.webcomponents</groupId>
+                     <artifactId>*</artifactId>
+                 </exclusion>
             </exclusions>
+            
         </dependency>
+        <!--
         <dependency>
             <groupId>org.vaadin.pekka</groupId>
             <artifactId>checkbox-group-java</artifactId>
             <version>1.0.0.alpha1</version>
         </dependency>
+        -->
         <dependency>
             <groupId>javax.validation</groupId>
             <artifactId>validation-api</artifactId>
@@ -86,6 +114,19 @@
                     <scanIntervalSeconds>2</scanIntervalSeconds>
                 </configuration>
             </plugin>
+            <plugin>
+                 <groupId>com.vaadin</groupId>
+                 <artifactId>vaadin-maven-plugin</artifactId>
+                 <version>${vaadin.version}</version>
+                 <executions>
+                     <execution>
+                         <goals>
+                             <goal>prepare-frontend</goal>
+                             <goal>build-frontend</goal>
+                         </goals>
+                     </execution>
+                 </executions>
+             </plugin>
             <plugin>
                 <groupId>io.reactiverse</groupId>
                 <artifactId>vertx-maven-plugin</artifactId>

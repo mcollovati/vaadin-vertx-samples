@@ -3,7 +3,7 @@ package com.github.mcollovati.vertxvaadin.flowdemo.authentication;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.Html;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.dependency.StyleSheet;
+import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
@@ -21,7 +21,7 @@ import com.vaadin.flow.router.Route;
  */
 @Route("Login")
 @PageTitle("Login")
-@StyleSheet("css/shared-styles.css")
+@JsModule("frontend://styles/shared-styles.js")
 public class LoginScreen extends FlexLayout {
 
     private TextField username;

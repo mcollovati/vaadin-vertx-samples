@@ -20,6 +20,8 @@ import com.github.mcollovati.vertxvaadin.flowdemo.backend.data.Product;
 import com.vaadin.flow.component.AbstractCompositeField;
 import com.vaadin.flow.component.HasSize;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.checkbox.CheckboxGroup;
+import com.vaadin.flow.component.checkbox.CheckboxGroupVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Image;
@@ -35,7 +37,6 @@ import com.vaadin.flow.data.converter.StringToBigDecimalConverter;
 import com.vaadin.flow.data.converter.StringToIntegerConverter;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.server.StreamResource;
-import org.vaadin.pekka.CheckboxGroup;
 
 /**
  * A form for editing a single product.
@@ -150,13 +151,10 @@ public class ProductForm extends Div {
         content.add(availability);
 
         category = new CheckboxGroup<>();
+        category.setLabel("Categories");
         category.setId("category");
-        category.getContent().getStyle().set("flex-direction", "column")
-            .set("margin", "0");
-        Label categoryLabel = new Label("Categories");
-        categoryLabel.setClassName("vaadin-label");
-        categoryLabel.setFor(category);
-        content.add(categoryLabel, category);
+        category.addThemeVariants(CheckboxGroupVariant.LUMO_VERTICAL);
+        content.add(category);
 
         binder = new BeanValidationBinder<>(Product.class);
         binder.forField(price).withConverter(new PriceConverter())

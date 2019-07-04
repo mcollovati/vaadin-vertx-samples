@@ -2,6 +2,7 @@ package com.github.mcollovati.vertxvaadin.flowdemo.push;
 
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -22,7 +23,7 @@ import com.vaadin.flow.server.VaadinService;
 import io.vertx.core.Vertx;
 
 @Route(value = "Push", layout = MainLayout.class)
-public class PushView extends VerticalLayout  {
+public class PushView extends VerticalLayout {
 
     public static final String VIEW_NAME = "Push";
 
@@ -112,9 +113,7 @@ public class PushView extends VerticalLayout  {
     }
 
     private String formatStartMessage(UI ui, int sleep, int current) {
-        String endTime = LocalDateTime.now().atOffset(ZoneOffset.ofTotalSeconds(
-            ui.getSession().getBrowser().getTimezoneOffset() / 1000
-        )).plusSeconds(sleep).toString();
+        String endTime = getNow(ui).plusSeconds(sleep).toString();
         return String.format(
             "Starting background thread %d, please wait %d seconds until around %s",
             current, sleep, endTime
@@ -122,14 +121,19 @@ public class PushView extends VerticalLayout  {
     }
 
     private String formatEndMessage(UI ui, int sleep, int current) {
-        String endTime = LocalDateTime.now().atOffset(ZoneOffset.ofTotalSeconds(
-
-            ui.getSession().getBrowser().getTimezoneOffset() / 1000
-        )).toString();
+        String endTime = getNow(ui).toString();
         return String.format(
             "Background thread %d, completed after %d seconds at %s",
             current, sleep, endTime
         );
+    }
+
+    private OffsetDateTime getNow(UI ui) {
+        AtomicInteger timezoneOffset = new AtomicInteger();
+        ui.getPage().retrieveExtendedClientDetails(extendedClientDetails -> timezoneOffset.set(extendedClientDetails.getTimezoneOffset()));
+        return LocalDateTime.now().atOffset(ZoneOffset.ofTotalSeconds(
+            timezoneOffset.get() / 1000
+        ));
     }
 
     private void updateCounter() {
