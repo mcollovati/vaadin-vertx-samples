@@ -59,6 +59,7 @@ public class ProductForm extends Div {
     private SampleCrudLogic viewLogic;
     private Binder<Product> binder;
     private Product currentProduct;
+    private final Upload upload;
 
     private static class PriceConverter extends StringToBigDecimalConverter {
 
@@ -117,7 +118,8 @@ public class ProductForm extends Div {
 
         SerializableUtils.FileReceiver fileBuffer = SerializableUtils.newFileBuffer();
 
-        Upload upload = new Upload(fileBuffer);
+        upload = new Upload(fileBuffer);
+        upload.setAcceptedFileTypes("image/*");
         upload.addSucceededListener(event -> {
             Path path = saveFile(fileBuffer);
             image.setValue(path.toAbsolutePath().toString());
@@ -224,6 +226,7 @@ public class ProductForm extends Div {
         if (product == null) {
             product = new Product();
         }
+        upload.getElement().executeJavaScript("this.files=[]");
         delete.setVisible(!product.isNewProduct());
         currentProduct = product;
         binder.readBean(product);
