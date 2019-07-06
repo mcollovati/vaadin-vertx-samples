@@ -8,6 +8,9 @@
 
     <artifactId>bookstore-ui</artifactId>
     <name>bookstore-ui</name>
+    <properties>
+        <vertx-maven-plugin.version>1.0.15</vertx-maven-plugin.version>
+    </properties>
     <packaging>war</packaging>
 
     <dependencies>
@@ -51,10 +54,12 @@
                     <groupId>com.vaadin</groupId>
                     <artifactId>flow-push</artifactId>
                 </exclusion>
+                <!--
                 <exclusion>
                     <groupId>com.vaadin</groupId>
                     <artifactId>flow-client</artifactId>
                 </exclusion>
+                -->
                 <!-- Webjars are only needed when running in Vaadin 13 compatibility mode -->
                  <exclusion>
                      <groupId>com.vaadin.webjar</groupId>
@@ -130,7 +135,7 @@
             <plugin>
                 <groupId>io.reactiverse</groupId>
                 <artifactId>vertx-maven-plugin</artifactId>
-                <version>1.0.15</version>
+                <version>${vertx-maven-plugin.version}</version>
                 <executions>
                     <execution>
                         <id>vmp-init-package</id>
@@ -176,6 +181,7 @@
 
             <build>
                 <plugins>
+                    <!--
                     <plugin>
                         <groupId>com.vaadin</groupId>
                         <artifactId>vaadin-maven-plugin</artifactId>
@@ -192,10 +198,11 @@
                             </execution>
                         </executions>
                     </plugin>
+                    -->
                     <plugin>
                         <groupId>io.reactiverse</groupId>
                         <artifactId>vertx-maven-plugin</artifactId>
-                        <version>1.0.15</version>
+                        <version>${vertx-maven-plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>vmp-init-package</id>

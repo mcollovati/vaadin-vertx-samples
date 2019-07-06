@@ -18,7 +18,7 @@ import com.vaadin.flow.theme.lumo.Lumo;
  * The layout of the pages e.g. About and Inventory.
  */
 //@StyleSheet("css/shared-styles.css")
-@JsModule("./styles/shared-styles.js")
+@JsModule("frontend://styles/shared-styles.js")
 @Theme(value = Lumo.class, variant = Lumo.DARK)
 @PWA(name = "Book store sample", shortName = "BookStore")
 @Push
