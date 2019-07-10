@@ -1,25 +1,31 @@
 package com.github.mcollovati.vertxvaadin.flowdemo.push;
 
 
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.github.mcollovati.vertx.vaadin.UIProxy;
 import com.github.mcollovati.vertx.vaadin.VertxVaadinService;
 import com.github.mcollovati.vertxvaadin.flowdemo.MainLayout;
+import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.ClickEvent;
+import com.vaadin.flow.component.DetachEvent;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Label;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.progressbar.ProgressBar;
+import com.vaadin.flow.component.progressbar.ProgressBarVariant;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinService;
+import com.vaadin.flow.shared.Registration;
 import io.vertx.core.Vertx;
 
 @Route(value = "Push", layout = MainLayout.class)
@@ -31,6 +37,8 @@ public class PushView extends VerticalLayout {
     private final AtomicInteger counter = new AtomicInteger();
     private final AtomicInteger messages = new AtomicInteger();
     private final VerticalLayout messagesLayout;
+    private final CopyOnWriteArrayList<ProgressBar> bars = new CopyOnWriteArrayList<>();
+    private Registration taskTimer;
 
     public PushView() {
         setHeight("100%");
@@ -40,11 +48,13 @@ public class PushView extends VerticalLayout {
         counterLabel.setTitle("Messages pushed from server");
         counterLabel.setText(Integer.toString(messages.get()));
 
-        add(new HorizontalLayout(
+        HorizontalLayout layout = new HorizontalLayout(
             new Button("Start background thread", this::startBackgroundThread),
             new Button("Start background thread (worker)", this::startBackgroundWithWorker),
             counterLabel
-        ));
+        );
+        layout.setDefaultVerticalComponentAlignment(Alignment.CENTER);
+        add(layout);
 
 
         messagesLayout = new VerticalLayout();
@@ -58,83 +68,83 @@ public class PushView extends VerticalLayout {
     }
 
 
+    @Override
+    protected void onAttach(AttachEvent attachEvent) {
+        UI ui = attachEvent.getUI();
+        Vertx vertx = ((VertxVaadinService) attachEvent.getSession().getService()).getVertx();
+        long timerId = vertx.setPeriodic(1000, tid -> ui.access(this::updateTasks));
+        taskTimer = () -> {
+            vertx.cancelTimer(timerId);
+            bars.clear();
+        };
+    }
+
+    @Override
+    protected void onDetach(DetachEvent detachEvent) {
+        taskTimer.remove();
+    }
+
+    private void updateTasks() {
+        List<ProgressBar> copy = new ArrayList<>(bars);
+        for (ProgressBar bar : copy) {
+            double nextValue = bar.getValue() + 1;
+            if (nextValue < bar.getMax()) {
+                bar.setValue(nextValue);
+            } else {
+                bar.setValue(bar.getMax());
+                bars.remove(bar);
+            }
+        }
+    }
+
     private void startBackgroundWithWorker(ClickEvent<Button> event) {
         int sleep = ThreadLocalRandom.current().nextInt(5, 20);
-        UI ui = getUI().orElse(null);
-        if (ui != null) {
-            new UIProxy(ui).runLater(() -> {
-                int current = counter.incrementAndGet();
-                ui.access(() -> {
-                    updateCounter();
-                    messagesLayout.add(
-                        new Label(formatStartMessage(ui, sleep, current))
-                    );
-                });
-                try {
-                    Thread.sleep(sleep * 1000);
-                } catch (InterruptedException e) {
-                }
-                messages.incrementAndGet();
-                ui.access(() -> {
-                    messagesLayout.add(
-                        new Label(formatEndMessage(ui, sleep, current))
-                    );
-                    updateCounter();
-                });
-
-            });
-        }
+        getUI().ifPresent(ui -> new UIProxy(ui).runLater(() -> {
+            int current = counter.incrementAndGet();
+            Runnable stopTask = addTask(current, sleep, ui);
+            try {
+                Thread.sleep(sleep * 1000);
+            } catch (InterruptedException e) {
+            }
+            stopTask.run();
+        }));
     }
 
     private void startBackgroundThread(ClickEvent<Button> event) {
         int sleep = ThreadLocalRandom.current().nextInt(5, 20);
 
         Vertx vertx = ((VertxVaadinService) VaadinService.getCurrent()).getVertx();
-        UI ui = getUI().orElse(null);
-        if (ui != null) {
-            vertx.setTimer(1, i -> {
-                int current = counter.incrementAndGet();
-                ui.access(() -> {
-                    updateCounter();
-                    messagesLayout.add(
-                        new Label(formatStartMessage(ui, sleep, current))
-                    );
-                });
-                vertx.setTimer(sleep * 1000, x -> {
-                    messages.incrementAndGet();
-                    ui.access(() -> {
-                        messagesLayout.add(
-                            new Label(formatEndMessage(ui, sleep, current)));
-                        updateCounter();
-                    });
-                });
+        getUI().ifPresent(ui -> vertx.setTimer(1, i -> {
+            int current = counter.incrementAndGet();
+            Runnable stopTask = addTask(current, sleep, ui);
+            vertx.setTimer(sleep * 1000, x -> stopTask.run());
+        }));
+    }
+
+    private Runnable addTask(int taskId, int taskTimeout, UI ui) {
+        ProgressBar progressBar = new ProgressBar(0, taskTimeout, 0);
+        ui.access(() -> {
+            updateCounter();
+            HorizontalLayout l = new HorizontalLayout();
+            Span label = new Span(String.format("Task %d (completion time %d s)", taskId, taskTimeout));
+            label.getElement().getStyle().set("white-space", "nowrap");
+            l.add(label);
+            l.addAndExpand(progressBar);
+            messagesLayout.addComponentAtIndex(0, l);
+            bars.add(progressBar);
+
+        });
+        return () -> {
+            messages.incrementAndGet();
+            ui.access(() -> {
+                progressBar.addThemeVariants(ProgressBarVariant.LUMO_SUCCESS);
+                progressBar.setValue(taskTimeout);
+                bars.remove(progressBar);
+                updateCounter();
             });
-        }
+        };
     }
 
-    private String formatStartMessage(UI ui, int sleep, int current) {
-        String endTime = getNow(ui).plusSeconds(sleep).toString();
-        return String.format(
-            "Starting background thread %d, please wait %d seconds until around %s",
-            current, sleep, endTime
-        );
-    }
-
-    private String formatEndMessage(UI ui, int sleep, int current) {
-        String endTime = getNow(ui).toString();
-        return String.format(
-            "Background thread %d, completed after %d seconds at %s",
-            current, sleep, endTime
-        );
-    }
-
-    private OffsetDateTime getNow(UI ui) {
-        AtomicInteger timezoneOffset = new AtomicInteger();
-        ui.getPage().retrieveExtendedClientDetails(extendedClientDetails -> timezoneOffset.set(extendedClientDetails.getTimezoneOffset()));
-        return LocalDateTime.now().atOffset(ZoneOffset.ofTotalSeconds(
-            timezoneOffset.get() / 1000
-        ));
-    }
 
     private void updateCounter() {
         counterLabel.setText(String.format("%d of %d",
