@@ -1,5 +1,6 @@
 package com.github.mcollovati.vertxvaadin.flowdemo.crud;
 
+import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
@@ -59,7 +60,14 @@ public class SampleCrudView extends HorizontalLayout
         add(barAndGridLayout);
         add(form);
 
-        viewLogic.init();
+        //viewLogic.init();
+    }
+
+    @Override
+    protected void onAttach(AttachEvent attachEvent) {
+        if (attachEvent.isInitialAttach()) {
+            //viewLogic.init();
+        }
     }
 
     public HorizontalLayout createTopBar() {

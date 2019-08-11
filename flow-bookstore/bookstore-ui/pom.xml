@@ -9,6 +9,7 @@
     <artifactId>bookstore-ui</artifactId>
     <name>bookstore-ui</name>
     <properties>
+        <vertx.version>3.7.1</vertx.version>
         <vertx-maven-plugin.version>1.0.15</vertx-maven-plugin.version>
     </properties>
     <packaging>war</packaging>
@@ -245,6 +246,59 @@
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+        <profile>
+            <id>ha-hazelcast</id>
+            <properties>
+                <vertx.runArgs>-ha</vertx.runArgs>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>io.vertx</groupId>
+                    <artifactId>vertx-hazelcast</artifactId>
+                    <version>${vertx.version}</version>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>ha-infinispan</id>
+            <properties>
+                <vertx.runArgs>-ha</vertx.runArgs>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>io.vertx</groupId>
+                    <artifactId>vertx-infinispan</artifactId>
+                    <version>${vertx.version}</version>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>ha-ignite</id>
+            <properties>
+                <vertx.runArgs>-ha</vertx.runArgs>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>io.vertx</groupId>
+                    <artifactId>vertx-ignite</artifactId>
+                    <version>${vertx.version}</version>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>logback</id>
+            <dependencies>
+                <dependency>
+                    <groupId>ch.qos.logback</groupId>
+                    <artifactId>logback-classic</artifactId>
+                    <version>1.2.3</version>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
         </profile>
     </profiles>
 

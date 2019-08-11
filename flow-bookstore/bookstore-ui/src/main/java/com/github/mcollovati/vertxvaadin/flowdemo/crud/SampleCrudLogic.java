@@ -50,7 +50,7 @@ public class SampleCrudLogic implements Serializable {
             fragmentParameter = productId;
         }
 
-        UI.getCurrent().navigate(SampleCrudView.class, fragmentParameter);
+        //UI.getCurrent().navigate(SampleCrudView.class, fragmentParameter);
     }
 
     public void enter(String productId) {

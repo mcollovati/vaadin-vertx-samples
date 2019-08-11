@@ -1,5 +1,6 @@
 package com.github.mcollovati.vertxvaadin.flowdemo;
 
+import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -15,6 +16,7 @@ import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.server.VaadinServletService;
 import com.vaadin.flow.server.VaadinSession;
+import com.vaadin.flow.shared.Registration;
 
 public class Menu extends FlexLayout {
 
@@ -44,16 +46,30 @@ public class Menu extends FlexLayout {
 
         Label title = new Label("My CRUD");
 
+        /*
          // Note! Image resource url is resolved here as it is dependent on the
          // execution mode (development or production) and browser ES level support
          String resolvedImage = VaadinServletService.getCurrent()
                  .resolveResource("img/table-logo.png",
                          VaadinSession.getCurrent().getBrowser());
 
-        Image image = new Image(resolvedImage, "");
+         */
+
+        //Image image = new Image(resolvedImage, "");
+        Image image = new Image();
+        image.setAlt("");
         top.add(image);
         top.add(title);
         add(top);
+
+        Registration registration = addAttachListener(event -> {
+            if (event.isInitialAttach()) {
+                String resolvedImage = VaadinServletService.getCurrent()
+                    .resolveResource("img/table-logo.png",
+                        VaadinSession.getCurrent().getBrowser());
+                image.setSrc(resolvedImage);
+            }
+        });
 
         // container for the navigation buttons, which are added by addView()
         tabs = new Tabs();

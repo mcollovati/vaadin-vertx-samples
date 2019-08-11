@@ -38,7 +38,7 @@ public class PushView extends VerticalLayout {
     private final AtomicInteger messages = new AtomicInteger();
     private final VerticalLayout messagesLayout;
     private final CopyOnWriteArrayList<ProgressBar> bars = new CopyOnWriteArrayList<>();
-    private Registration taskTimer;
+    private transient Registration taskTimer;
 
     public PushView() {
         setHeight("100%");

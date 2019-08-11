@@ -25,7 +25,6 @@ import com.vaadin.flow.component.checkbox.CheckboxGroupVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Image;
-import com.vaadin.flow.component.html.Label;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -37,6 +36,7 @@ import com.vaadin.flow.data.converter.StringToBigDecimalConverter;
 import com.vaadin.flow.data.converter.StringToIntegerConverter;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.server.StreamResource;
+import io.vertx.core.Vertx;
 
 /**
  * A form for editing a single product.
@@ -116,15 +116,19 @@ public class ProductForm extends Div {
         productName.setValueChangeMode(ValueChangeMode.EAGER);
         content.add(productName);
 
-        SerializableUtils.FileReceiver fileBuffer = SerializableUtils.newFileBuffer();
 
-        upload = new Upload(fileBuffer);
-        upload.setAcceptedFileTypes("image/*");
-        upload.addSucceededListener(event -> {
-            Path path = saveFile(fileBuffer);
-            image.setValue(path.toAbsolutePath().toString());
-        });
-        content.add(upload);
+        if (Vertx.currentContext().owner().isClustered()) {
+            upload = null;
+        } else {
+            SerializableUtils.FileReceiver fileBuffer = SerializableUtils.newFileBuffer();
+            upload = new Upload(fileBuffer);
+            upload.setAcceptedFileTypes("image/*");
+            upload.addSucceededListener(event -> {
+                Path path = saveFile(fileBuffer);
+                image.setValue(path.toAbsolutePath().toString());
+            });
+            content.add(upload);
+        }
 
         image = new ImageField();
         image.setWidth("200px");
@@ -226,7 +230,9 @@ public class ProductForm extends Div {
         if (product == null) {
             product = new Product();
         }
-        upload.getElement().executeJavaScript("this.files=[]");
+        if (upload != null) {
+            upload.getElement().executeJs("this.files=[]");
+        }
         delete.setVisible(!product.isNewProduct());
         currentProduct = product;
         binder.readBean(product);
