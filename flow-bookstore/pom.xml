@@ -8,8 +8,8 @@
 	<name>bookstore</name>
 
     <properties>
-        <vaadin.version>14.0-SNAPSHOT</vaadin.version>
-        <vertx-vaadin.version>14.0.0-SNAPSHOT</vertx-vaadin.version>
+        <vaadin.version>14.0.4</vaadin.version>
+        <vertx-vaadin.version>14.0.0</vertx-vaadin.version>
         <jetty.plugin.version>9.4.11.v20180605</jetty.plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8
@@ -50,6 +50,16 @@
             <id>vaadin-prereleases</id>
             <url>http://maven.vaadin.com/vaadin-prereleases</url>
         </repository>
+        <repository>
+	<id>oss-jfrog-snapshots</id>
+	<url>https://oss.jfrog.org/artifactory/oss-snapshot-local</url>
+    <releases>
+        <enabled>false</enabled>
+    </releases>
+    <snapshots>
+        <enabled>true</enabled>
+    </snapshots>
+</repository>
     </repositories>
     <pluginRepositories>
         <!-- Main Maven repository -->
