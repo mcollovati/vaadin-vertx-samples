@@ -11,14 +11,15 @@ import com.vaadin.flow.router.RouterLayout;
 import com.vaadin.flow.server.PWA;
 import com.vaadin.flow.theme.Theme;
 import com.vaadin.flow.theme.lumo.Lumo;
+import com.vaadin.flow.component.dependency.CssImport;
 
 //import com.vaadin.flow.server.PWA;
 
 /**
  * The layout of the pages e.g. About and Inventory.
  */
-//@StyleSheet("css/shared-styles.css")
-@JsModule("frontend://styles/shared-styles.js")
+@CssImport("./styles/shared-styles.css")
+//@JsModule("./styles/shared-styles.js")
 @Theme(value = Lumo.class, variant = Lumo.DARK)
 @PWA(name = "Book store sample", shortName = "BookStore")
 @Push

@@ -15,13 +15,14 @@ import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.component.dependency.CssImport;
 
 /**
  * UI content when the user is not logged in yet.
  */
 @Route("Login")
 @PageTitle("Login")
-@JsModule("frontend://styles/shared-styles.js")
+@CssImport("./styles/shared-styles.js")
 public class LoginScreen extends FlexLayout {
 
     private TextField username;
