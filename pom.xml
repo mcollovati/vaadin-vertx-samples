@@ -13,6 +13,6 @@
     <modules>
         <module>sample</module>
         <module>example-app</module>
-        <module>flow-bookstore</module>
+        <module>bookstore-example</module>
     </modules>
 </project>
