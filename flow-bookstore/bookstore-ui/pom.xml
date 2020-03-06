@@ -128,9 +128,6 @@
                      <execution>
                          <goals>
                              <goal>prepare-frontend</goal>
-                             <!--
-                             <goal>build-frontend</goal>
-                             -->
                          </goals>
                      </execution>
                  </executions>
@@ -184,24 +181,19 @@
 
             <build>
                 <plugins>
-                    <!--
-                    <plugin>
+                   <plugin>
                         <groupId>com.vaadin</groupId>
                         <artifactId>vaadin-maven-plugin</artifactId>
                         <version>${vaadin.version}</version>
                         <executions>
                             <execution>
                                 <goals>
-                                    <goal>copy-production-files</goal>
-                                    <goal>package-for-production</goal>
+                                    <goal>prepare-frontend</goal>
+                                    <goal>build-frontend</goal>
                                 </goals>
-                                <configuration>
-                                    <transpileOutputDirectory>${project.build.outputDirectory}/META-INF/resources</transpileOutputDirectory>
-                                </configuration>
                             </execution>
                         </executions>
                     </plugin>
-                    -->
                     <plugin>
                         <groupId>io.reactiverse</groupId>
                         <artifactId>vertx-maven-plugin</artifactId>
