@@ -9,7 +9,7 @@
 
     <properties>
         <vaadin.version>14.1.18</vaadin.version>
-        <vertx-vaadin.version>14.1.0-SNAPSHOT</vertx-vaadin.version>
+        <vertx-vaadin.version>14.1.0</vertx-vaadin.version>
         <jetty.plugin.version>9.4.11.v20180605</jetty.plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8
