@@ -8,8 +8,9 @@
 	<name>bookstore</name>
 
     <properties>
-        <vaadin.version>14.1.18</vaadin.version>
-        <vertx-vaadin.version>14.1.1-SNAPSHOT</vertx-vaadin.version>
+        <!-- <vaadin.version>14.1.22</vaadin.version> -->
+        <vaadin.version>14.2.0.beta1</vaadin.version>
+        <vertx-vaadin.version>14.1.2-SNAPSHOT</vertx-vaadin.version>
         <jetty.plugin.version>9.4.11.v20180605</jetty.plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8
