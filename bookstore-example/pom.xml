@@ -17,8 +17,8 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <failOnMissingWebXml>false</failOnMissingWebXml>
 
-        <vaadin.version>15.0.5</vaadin.version>
-        <vertx-vaadin.version>15.0.0-SNAPSHOT</vertx-vaadin.version>
+        <vaadin.version>17.0.4</vaadin.version>
+        <vertx-vaadin.version>17.0.0-SNAPSHOT</vertx-vaadin.version>
         <vertx.version>3.8.5</vertx.version>
 
         <vertx-maven-plugin.version>1.0.15</vertx-maven-plugin.version>
@@ -58,6 +58,12 @@
             <artifactId>vertx-vaadin-flow</artifactId>
             <version>${vertx-vaadin.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.mcollovati.vertx</groupId>
+            <artifactId>vaadin-flow-sockjs</artifactId>
+            <version>${vertx-vaadin.version}</version>
+                <!-- <classifier>vaadin-${vaadin.version}</classifier> -->
+        </dependency>            
 
         <!-- Added to provide logging output as Vaadin uses -->
         <!-- the unbound SLF4J no-operation (NOP) logger implementation -->

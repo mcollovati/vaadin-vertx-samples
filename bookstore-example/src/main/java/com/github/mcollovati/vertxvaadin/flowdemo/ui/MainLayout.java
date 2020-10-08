@@ -33,9 +33,7 @@ import com.vaadin.flow.theme.lumo.Lumo;
 /**
  * The main layout. Contains the navigation menu.
  */
-@Push
 @Theme(value = Lumo.class)
-@PWA(name = "Bookstore", shortName = "Bookstore")
 @CssImport("./styles/shared-styles.css")
 @CssImport(value = "./styles/menu-buttons.css", themeFor = "vaadin-button")
 public class MainLayout extends AppLayout implements RouterLayout {
