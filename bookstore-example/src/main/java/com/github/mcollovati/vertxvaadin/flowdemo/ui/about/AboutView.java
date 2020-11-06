@@ -21,7 +21,7 @@ public class AboutView extends VerticalLayout {
     public AboutView() {
         add(new HorizontalLayout(
             VaadinIcon.INFO_CIRCLE.create()),
-            new Span(" This application is using Vaadin version "
+            new Span(" This application is using Vaadin Flow version "
                 + Version.getFullVersion() + ".")
         );
         add(new Span("running on top of Vert.x " + VersionCommand.getVersion()));
