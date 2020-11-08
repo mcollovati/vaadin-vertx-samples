@@ -44,7 +44,7 @@ public class InventoryView extends HorizontalLayout
         setSizeFull();
         final HorizontalLayout topLayout = createTopBar();
         grid = new ProductGrid();
-        grid.setDataProvider(dataProvider);
+        grid.setItems(dataProvider);
         // Allows user to select a single row in the grid.
         grid.asSingleSelect().addValueChangeListener(
                 event -> viewLogic.rowSelected(event.getValue()));
