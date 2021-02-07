@@ -8,6 +8,8 @@ import '@vaadin/vaadin-app-layout/theme/lumo/vaadin-app-layout';
 import '@vaadin/vaadin-tabs/theme/lumo/vaadin-tab';
 import '@vaadin/vaadin-tabs/theme/lumo/vaadin-tabs';
 
+import * as counterEndpoint from './generated/CounterEndpoint';
+
 interface MenuTab {
   route: string;
   name: string;
@@ -53,7 +55,17 @@ export class MainLayoutElement extends LitElement {
   }
 
   private getIndexOfSelectedTab(): number {
-    const index = menuTabs.findIndex(
+     counterEndpoint.addTen(1)
+         .then(result => console.log("addTen should work", result))
+         .catch(function (err) {
+                 console.log('addTen expected error', err.message); // never called
+             });
+     counterEndpoint.square(9)
+         .then(result => console.log("square should not work", result))
+         .catch(function (err) {
+                 console.log('square expected error', err.message); // never called
+             });
+   const index = menuTabs.findIndex(
       menuTab => this.isCurrentLocation(menuTab.route)
     );
 

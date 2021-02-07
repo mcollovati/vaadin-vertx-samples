@@ -14,5 +14,6 @@
         <module>sample</module>
         <module>example-app</module>
         <module>bookstore-example</module>
+        <module>fusion-example</module>
     </modules>
 </project>

@@ -17,6 +17,8 @@ import {Router} from '@vaadin/router';
 // import Flow module to enable navigation to Vaadin server-side views
 import {Flow} from '@vaadin/flow-frontend/Flow';
 
+import * as counterEndpoint from './generated/CounterEndpoint';
+
 const {serverSideRoutes} = new Flow({
   imports: () => import('../target/frontend/generated-flow-imports')
 });
@@ -59,3 +61,10 @@ const routes = [
 // Vaadin router needs an outlet in the index.html page to display views
 export const router = new Router(document.querySelector('#outlet'));
 router.setRoutes(routes);
+counterEndpoint.addOne(1).then(result => console.log(result));
+
+counterEndpoint.addTen(1)
+    .then(result => console.log("before login", result))
+    .catch(function (err) {
+            console.log('addTen expected error', err.message); // never called
+        });
