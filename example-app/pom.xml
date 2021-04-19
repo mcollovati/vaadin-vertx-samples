@@ -10,7 +10,7 @@
     <name>example-app-parent</name>
 
     <properties>
-        <vaadin.version>8.8.5</vaadin.version>
+        <vaadin.version>8.12.3</vaadin.version>
         <vaadin.plugin.version>${vaadin.version}</vaadin.plugin.version>
         <vertx-vaadin8.version>2.0.0</vertx-vaadin8.version>
 
