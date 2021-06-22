@@ -20,7 +20,8 @@ import com.vaadin.flow.component.dependency.CssImport;
  */
 @CssImport("./styles/shared-styles.css")
 //@JsModule("./styles/shared-styles.js")
-@Theme(value = Lumo.class, variant = Lumo.DARK)
+//@Theme(value = Lumo.class, variant = Lumo.DARK)
+@Theme(themeFolder = "my-theme")
 @PWA(name = "Book store sample", shortName = "BookStore")
 @Push
 public class MainLayout extends FlexLayout implements RouterLayout {

@@ -9,8 +9,8 @@
     <artifactId>bookstore-ui</artifactId>
     <name>bookstore-ui</name>
     <properties>
-        <vertx.version>3.8.5</vertx.version>
-        <vertx-maven-plugin.version>1.0.15</vertx-maven-plugin.version>
+        <vertx.version>4.0.2</vertx.version>
+        <vertx-maven-plugin.version>1.0.24</vertx-maven-plugin.version>
     </properties>
     <packaging>war</packaging>
 
@@ -37,6 +37,11 @@
         <dependency>
             <groupId>com.github.mcollovati.vertx</groupId>
             <artifactId>vertx-vaadin-flow</artifactId>
+            <version>${vertx-vaadin.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.mcollovati.vertx</groupId>
+            <artifactId>vaadin-flow-sockjs</artifactId>
             <version>${vertx-vaadin.version}</version>
         </dependency>
         <dependency>
@@ -115,9 +120,17 @@
 
         <!-- Added to provide logging output as Flow uses -->
         <!-- the unbound SLF4J no-operation (NOP) logger implementation -->
+        <!--
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
+        </dependency>
+        -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version>
+            <scope>runtime</scope>
         </dependency>
     </dependencies>
 

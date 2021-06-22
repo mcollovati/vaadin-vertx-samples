@@ -1,0 +1,15 @@
+@import shared-styles.css
+
+html, :host {
+  --lumo-border-radius: 0.5em;
+  --my-brand-color: purple;
+}
+
+.application-header {
+  background: white;
+  border-bottom: 1px solid gray;
+  background-image: url('./img/table-logo.png');
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: 25%;
+}

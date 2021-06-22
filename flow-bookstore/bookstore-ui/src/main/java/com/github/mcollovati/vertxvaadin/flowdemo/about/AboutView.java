@@ -2,6 +2,7 @@ package com.github.mcollovati.vertxvaadin.flowdemo.about;
 
 import com.github.mcollovati.vertx.vaadin.VertxVaadin;
 import com.github.mcollovati.vertxvaadin.flowdemo.MainLayout;
+import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -14,11 +15,13 @@ import io.vertx.core.impl.launcher.commands.VersionCommand;
 
 @Route(value = "About", layout = MainLayout.class)
 @PageTitle("About")
+@CssImport(value = "./styles/background.css", themeFor = "vaadin-vertical-layout")
 public class AboutView extends VerticalLayout {
 
     public static final String VIEW_NAME = "About";
 
     public AboutView() {
+        addClassName("background-logo");
         add(new HorizontalLayout(
             VaadinIcon.INFO_CIRCLE.create(),
             new Span(" This application is using Vaadin Flow " + Version.getFullVersion())

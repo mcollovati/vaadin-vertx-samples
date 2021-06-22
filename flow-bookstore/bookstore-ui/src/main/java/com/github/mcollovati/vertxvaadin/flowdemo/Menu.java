@@ -65,7 +65,7 @@ public class Menu extends FlexLayout {
         Registration registration = addAttachListener(event -> {
             if (event.isInitialAttach()) {
                 String resolvedImage = VaadinServletService.getCurrent()
-                    .resolveResource("img/table-logo.png",
+                    .resolveResource("frontend/img/table-logo.png",
                         VaadinSession.getCurrent().getBrowser());
                 image.setSrc(resolvedImage);
             }
