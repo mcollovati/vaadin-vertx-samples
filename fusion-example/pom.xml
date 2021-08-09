@@ -11,11 +11,11 @@
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-        <vaadin.version>18.0.5</vaadin.version>
-        <vertx-vaadin.version>18.1.0</vertx-vaadin.version>
-        <vertx.version>3.9.5</vertx.version>
+        <vaadin.version>20.0.6</vaadin.version>
+        <vertx-vaadin.version>20.0.0-SNAPSHOT</vertx-vaadin.version>
+        <vertx.version>4.1.2</vertx.version>
 
-        <vertx-maven-plugin.version>1.0.15</vertx-maven-plugin.version>
+        <vertx-maven-plugin.version>1.0.24</vertx-maven-plugin.version>
     </properties>
 
     <repositories>
@@ -191,7 +191,10 @@
                     <webRoot>${project.build.outputDirectory}/META-INF/resources/webjars</webRoot>
                     <stripWebJarVersion>false</stripWebJarVersion>
                     <jvmArgs>
+                        <!--
                         <jvmArg>-javaagent:/home/marco/.local/share/JetBrains/IdeaIC2020.3/hotswap-agent-intellij-plugin/lib/agent/hotswap-agent-1.4.1.jar=autoHotswap=true</jvmArg>
+                        -->
+                        <jvmArg>-XX:HotswapAgent=fatjar</jvmArg>
                     </jvmArgs>
                 </configuration>
             </plugin>
