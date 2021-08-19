@@ -3,7 +3,7 @@ package com.github.mcollovati.vertxvaadin.flowdemo.ui.fusion;
 import javax.annotation.security.RolesAllowed;
 
 import com.vaadin.flow.server.connect.Endpoint;
-import com.vaadin.flow.server.connect.auth.AnonymousAllowed;
+import com.vaadin.flow.server.auth.AnonymousAllowed;
 
 @Endpoint
 @AnonymousAllowed

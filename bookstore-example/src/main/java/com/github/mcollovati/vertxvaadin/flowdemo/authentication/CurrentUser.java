@@ -9,6 +9,7 @@ import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.auth.AbstractUser;
 import io.vertx.ext.auth.AuthProvider;
+import io.vertx.ext.auth.User;
 
 /**
  * Class for retrieving and setting the name of the current user of the current
@@ -58,23 +59,8 @@ public final class CurrentUser {
         } else {
             getCurrentRequest().getWrappedSession().setAttribute(
                 CURRENT_USER_SESSION_ATTRIBUTE_KEY, currentUser);
-            ((VertxVaadinRequest) getCurrentRequest()).getRoutingContext().setUser(new AbstractUser() {
-                @Override
-                protected void doIsPermitted(String permission, Handler<AsyncResult<Boolean>> resultHandler) {
-                    boolean permitted = "admin".equals(currentUser) && "ROLE_ADMIN".equals(permission);
-                    resultHandler.handle(Future.succeededFuture(permitted));
-                }
 
-                @Override
-                public JsonObject principal() {
-                    return new JsonObject().put("username", currentUser);
-                }
-
-                @Override
-                public void setAuthProvider(AuthProvider authProvider) {
-
-                }
-            });
+            ((VertxVaadinRequest) getCurrentRequest()).getRoutingContext().setUser(User.fromName(currentUser));
         }
     }
 
