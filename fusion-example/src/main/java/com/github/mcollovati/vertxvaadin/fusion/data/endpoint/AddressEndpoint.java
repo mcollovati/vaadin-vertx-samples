@@ -4,7 +4,7 @@ import com.github.mcollovati.vertxvaadin.fusion.data.CrudEndpoint;
 import com.github.mcollovati.vertxvaadin.fusion.data.entity.Address;
 import com.github.mcollovati.vertxvaadin.fusion.data.service.AddressService;
 import com.github.mcollovati.vertxvaadin.fusion.data.service.InMemoryAddressRepository;
-import com.vaadin.flow.server.connect.Endpoint;
+import com.vaadin.fusion.Endpoint;
 
 @Endpoint
 public class AddressEndpoint extends CrudEndpoint<Address, Integer> {

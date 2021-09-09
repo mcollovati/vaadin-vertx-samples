@@ -3,8 +3,9 @@ package com.github.mcollovati.vertxvaadin.fusion.data;
 import java.util.List;
 import java.util.Optional;
 
-import com.vaadin.flow.server.connect.EndpointExposed;
+import com.vaadin.fusion.EndpointExposed;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
+import com.vaadin.fusion.Nonnull;
 import org.springframework.data.domain.Page;
 import org.vaadin.artur.helpers.CrudService;
 import org.vaadin.artur.helpers.GridSorter;
@@ -16,21 +17,23 @@ public abstract class CrudEndpoint<T, ID> {
 
     protected abstract CrudService<T, ID> getService();
 
-    public List<T> list(int offset, int limit, List<GridSorter> sortOrder) {
+    @Nonnull
+    public List<@Nonnull T> list(int offset, int limit, List<GridSorter> sortOrder) {
         Page<T> page = getService()
             .list(PagingUtil.offsetLimitTypeScriptSortOrdersToPageable(offset, limit, sortOrder));
         return page.getContent();
     }
 
-    public Optional<T> get(ID id) {
+    public Optional<T> get(@Nonnull ID id) {
         return getService().get(id);
     }
 
-    public T update(T entity) {
+    @Nonnull
+    public T update(@Nonnull T entity) {
         return getService().update(entity);
     }
 
-    public void delete(ID id) {
+    public void delete(@Nonnull ID id) {
         getService().delete(id);
     }
 

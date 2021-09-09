@@ -114,7 +114,7 @@ export class MasterDetailView extends LitElement {
     `;
   }
 
-  private async getGridData(params: GridDataProviderParams, callback: GridDataProviderCallback) {
+  private async getGridData(params: GridDataProviderParams<Person>, callback: GridDataProviderCallback<Person | undefined>) {
     const index = params.page * params.pageSize;
     const data = await PersonEndpoint.list(index, params.pageSize, params.sortOrders as any);
     callback(data);
