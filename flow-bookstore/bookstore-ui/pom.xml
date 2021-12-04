@@ -9,7 +9,7 @@
     <artifactId>bookstore-ui</artifactId>
     <name>bookstore-ui</name>
     <properties>
-        <vertx.version>4.0.2</vertx.version>
+        <vertx.version>4.2.1</vertx.version>
         <vertx-maven-plugin.version>1.0.24</vertx-maven-plugin.version>
     </properties>
     <packaging>war</packaging>

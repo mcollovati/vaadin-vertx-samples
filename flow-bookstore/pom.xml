@@ -4,8 +4,8 @@
 	<groupId>com.github.mcollovati.vertxvaadin.flow</groupId>
 	<artifactId>bookstore</artifactId>
     <properties>
-        <vaadin.version>14.6.3</vaadin.version>
-        <vertx-vaadin.version>14.4.1-SNAPSHOT</vertx-vaadin.version>
+        <vaadin.version>14.7.1</vaadin.version>
+        <vertx-vaadin.version>14.5.0-SNAPSHOT</vertx-vaadin.version>
         <!--
         <vaadin.version>14.5.5</vaadin.version>
         <vertx-vaadin.version>14.3.0</vertx-vaadin.version>
